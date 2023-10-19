@@ -1,0 +1,34 @@
+(
+    patterns: [
+        ("$", Any([
+            Simple(" HONK!"),
+            Simple(" HONK HONK!"),
+        ])),
+    ],
+    severities: {
+        1: Extend((
+            patterns: [
+                ("$", Any([
+                    Simple(" HONK HONK!"),
+                    Simple(" HONK HONK HONK!"),
+                ])),
+            ],
+        )),
+        2: Extend((
+            patterns: [
+                ("$", Any([
+                    Simple(" HONK HONK HONK!"),
+                    Simple(" HONK HONK HONK HONK!"),
+                ])),
+            ],
+        )),
+        3: Extend((
+            patterns: [
+                ("$", Any([
+                    Simple(" HONK HONK HONK HONK!"),
+                    Simple(" HONK HONK HONK HONK HONK!!!!!!!"),
+                ])),
+            ],
+        )),
+    },
+)
