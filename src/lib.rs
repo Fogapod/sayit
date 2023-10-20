@@ -1,6 +1,6 @@
 mod accent;
 #[cfg(feature = "deserialize")]
-mod deserialize;
+pub mod deserialize;
 mod replacement;
 mod severity;
 
