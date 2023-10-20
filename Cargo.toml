@@ -1,7 +1,11 @@
 [package]
-name = "accents"
+name = "pink_accents"
 version = "0.0.1"
+authors = ["fogapod"]
 edition = "2021"
+description = "Accent system based on string pattern matching"
+license = "AGPL-3.0"
+exclude = ["/.github", "/examples/accents", "/tests/sample_text.txt"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
