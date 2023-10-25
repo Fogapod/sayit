@@ -45,7 +45,7 @@ impl TryFrom<ReplacementCallbackDef> for ReplacementCallback {
 }
 
 #[derive(Debug, Deserialize)]
-pub enum ReplacementCallbackDef {
+enum ReplacementCallbackDef {
     Noop,
     Simple(String),
     Any(Vec<ReplacementCallbackDef>),
@@ -93,9 +93,9 @@ impl TryFrom<SeverityDef> for Severity {
 #[derive(Debug, Deserialize)]
 pub struct SeverityBodyDef {
     #[serde(default)]
-    pub(crate) words: Vec<(String, ReplacementCallbackDef)>,
+    words: Vec<(String, ReplacementCallbackDef)>,
     #[serde(default)]
-    pub(crate) patterns: Vec<(String, ReplacementCallbackDef)>,
+    patterns: Vec<(String, ReplacementCallbackDef)>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -148,11 +148,11 @@ impl TryFrom<AccentDef> for Accent {
 #[derive(Debug, Deserialize)]
 pub struct AccentDef {
     #[serde(default = "default_bool_true")]
-    pub(crate) normalize_case: bool,
+    normalize_case: bool,
     #[serde(default)]
-    pub(crate) words: Vec<(String, ReplacementCallbackDef)>,
+    words: Vec<(String, ReplacementCallbackDef)>,
     #[serde(default)]
-    pub(crate) patterns: Vec<(String, ReplacementCallbackDef)>,
+    patterns: Vec<(String, ReplacementCallbackDef)>,
     #[serde(default)]
-    pub(crate) severities: BTreeMap<u64, SeverityDef>,
+    severities: BTreeMap<u64, SeverityDef>,
 }
