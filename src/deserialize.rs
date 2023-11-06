@@ -63,7 +63,7 @@ fn default_bool_true() -> bool {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct AccentDef {
+pub(crate) struct AccentDef {
     #[serde(default = "default_bool_true")]
     normalize_case: bool,
     #[serde(default)]
