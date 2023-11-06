@@ -184,7 +184,7 @@ impl Accent {
 mod tests {
     use super::*;
 
-    use crate::replacement::SimpleString;
+    use crate::replacement::{AnyReplacement, SimpleString, WeightedReplacement};
 
     use std::{fs, vec};
 
@@ -355,7 +355,7 @@ mod tests {
         )
         .err()
         .unwrap()
-        .contains("Empty Any"));
+        .contains("at least one element"));
     }
 
     #[test]
@@ -372,7 +372,7 @@ mod tests {
         )
         .err()
         .unwrap()
-        .contains("Empty Weights"));
+        .contains("at least one element"));
 
         assert!(Accent::from_ron(
             r#"
@@ -391,7 +391,7 @@ mod tests {
         )
         .err()
         .unwrap()
-        .contains("Weights add up to 0"));
+        .contains("weights must add up to positive number"));
     }
 
     #[test]
@@ -506,27 +506,27 @@ mod tests {
                         },
                         Replacement {
                             source: Regex::new(r"(?m)[A-Z]").unwrap(),
-                            cb: ReplacementCallback::Weights(vec![
+                            cb: ReplacementCallback::Weights(WeightedReplacement(vec![
                                 (5, ReplacementCallback::Simple(SimpleString::new("E"))),
                                 (1, ReplacementCallback::Simple(SimpleString::new("Ē"))),
                                 (1, ReplacementCallback::Simple(SimpleString::new("Ê"))),
                                 (1, ReplacementCallback::Simple(SimpleString::new("Ë"))),
                                 (1, ReplacementCallback::Simple(SimpleString::new("È"))),
                                 (1, ReplacementCallback::Simple(SimpleString::new("É"))),
-                            ]),
+                            ])),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)[0-9]").unwrap(),
-                            cb: ReplacementCallback::Any(vec![ReplacementCallback::Weights(vec![
-                                (
+                            cb: ReplacementCallback::Any(AnyReplacement(vec![
+                                ReplacementCallback::Weights(WeightedReplacement(vec![(
                                     1,
-                                    ReplacementCallback::Any(vec![
+                                    ReplacementCallback::Any(AnyReplacement(vec![
                                         ReplacementCallback::Simple(SimpleString::new("6")),
                                         ReplacementCallback::Simple(SimpleString::new("9")),
                                         ReplacementCallback::Noop,
-                                    ]),
-                                ),
-                            ])]),
+                                    ])),
+                                )])),
+                            ])),
                         },
                     ],
                 ),

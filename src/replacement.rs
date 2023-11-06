@@ -22,8 +22,15 @@ impl SimpleString {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub(crate) struct AnyReplacement(pub(crate) Vec<ReplacementCallback>);
+
+#[derive(Debug, PartialEq, Clone)]
+pub(crate) struct WeightedReplacement(pub(crate) Vec<(u64, ReplacementCallback)>);
+
 /// Receives match and provides replacement
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 pub(crate) enum ReplacementCallback {
     /// Do not replace
     Noop,
@@ -34,9 +41,9 @@ pub(crate) enum ReplacementCallback {
     /// Puts string as is
     Simple(SimpleString),
     /// Selects random replacement with equal weights
-    Any(Vec<ReplacementCallback>),
+    Any(AnyReplacement),
     /// Selects replacement based on relative weights
-    Weights(Vec<(u64, ReplacementCallback)>),
+    Weights(WeightedReplacement),
     // TODO: see below
     // Custom(fn taking Caps, severity and maybe other info),
 }
@@ -91,7 +98,7 @@ impl ReplacementCallback {
                     string.body.clone()
                 }
             }
-            Self::Any(targets) => {
+            Self::Any(AnyReplacement(targets)) => {
                 let mut rng = rand::thread_rng();
 
                 targets
@@ -99,7 +106,7 @@ impl ReplacementCallback {
                     .expect("empty targets")
                     .replace(caps, normalize_case)
             }
-            Self::Weights(items) => {
+            Self::Weights(WeightedReplacement(items)) => {
                 let mut rng = rand::thread_rng();
 
                 items
@@ -244,10 +251,10 @@ mod tests {
 
     #[test]
     fn callback_any() {
-        let replacement = ReplacementCallback::Any(vec![
+        let replacement = ReplacementCallback::Any(AnyReplacement(vec![
             ReplacementCallback::Simple(SimpleString::new("bar")),
             ReplacementCallback::Simple(SimpleString::new("baz")),
-        ]);
+        ]));
 
         let bar_capture = Regex::new("bar").unwrap().captures("bar").unwrap();
         let selected = replacement.replace(&bar_capture, false);
@@ -257,11 +264,11 @@ mod tests {
 
     #[test]
     fn callback_weights() {
-        let replacement = ReplacementCallback::Weights(vec![
+        let replacement = ReplacementCallback::Weights(WeightedReplacement(vec![
             (1, ReplacementCallback::Simple(SimpleString::new("bar"))),
             (1, ReplacementCallback::Simple(SimpleString::new("baz"))),
             (0, ReplacementCallback::Simple(SimpleString::new("spam"))),
-        ]);
+        ]));
 
         let bar_capture = Regex::new("bar").unwrap().captures("bar").unwrap();
         let selected = replacement.replace(&bar_capture, false);

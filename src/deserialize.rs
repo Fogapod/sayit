@@ -1,148 +1,65 @@
 use crate::accent::Accent;
-use crate::replacement::{ReplacementCallback, SimpleString};
+use crate::replacement::{AnyReplacement, ReplacementCallback, SimpleString, WeightedReplacement};
 use crate::severity::Severity;
-use crate::severity::SeverityBody;
 
-use serde::Deserialize;
+use serde::{de, Deserialize, Deserializer};
 use std::collections::BTreeMap;
 
-impl TryFrom<ReplacementCallbackDef> for ReplacementCallback {
-    type Error = String;
-
-    // TODO: these should be in Deserialize implementation when/if it is done
-    fn try_from(accent_def: ReplacementCallbackDef) -> Result<Self, Self::Error> {
-        Ok(match accent_def {
-            ReplacementCallbackDef::Noop => Self::Noop,
-            ReplacementCallbackDef::Simple(body) => Self::Simple(SimpleString::new(&body)),
-            ReplacementCallbackDef::Any(items) => {
-                if items.is_empty() {
-                    return Err("Empty Any".to_owned());
-                }
-
-                let mut converted = Vec::with_capacity(items.len());
-                for item in items {
-                    converted.push(item.try_into()?);
-                }
-                ReplacementCallback::Any(converted)
-            }
-            ReplacementCallbackDef::Weights(items) => {
-                if items.is_empty() {
-                    return Err("Empty Weights".to_owned());
-                }
-
-                if items.iter().map(|(i, _)| i).sum::<u64>() == 0 {
-                    return Err("Weights add up to 0".to_owned());
-                }
-
-                let mut converted = Vec::with_capacity(items.len());
-                for (weight, item) in items {
-                    converted.push((weight, item.try_into()?));
-                }
-                Self::Weights(converted)
-            }
-        })
+impl<'de> Deserialize<'de> for SimpleString {
+    fn deserialize<D>(deserializer: D) -> Result<SimpleString, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(SimpleString::new(Deserialize::deserialize(deserializer)?))
     }
 }
 
-#[derive(Debug, Deserialize)]
-enum ReplacementCallbackDef {
-    Noop,
-    Simple(String),
-    Any(Vec<ReplacementCallbackDef>),
-    Weights(Vec<(u64, ReplacementCallbackDef)>),
-}
-
-impl TryFrom<SeverityBodyDef> for SeverityBody {
-    type Error = String;
-
-    // TODO: these should be in Deserialize implementation when/if it is done
-    fn try_from(accent_def: SeverityBodyDef) -> Result<Self, Self::Error> {
-        let mut words = Vec::with_capacity(accent_def.words.len());
-        for (i, (pattern, callback_def)) in accent_def.words.into_iter().enumerate() {
-            let callback: ReplacementCallback = match callback_def.try_into() {
-                Err(err) => Err(format!("error in word {i}: {pattern}: {err}"))?,
-                Ok(callback) => callback,
-            };
-            words.push((pattern, callback));
+impl<'de> Deserialize<'de> for AnyReplacement {
+    fn deserialize<D>(deserializer: D) -> Result<AnyReplacement, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let items: Vec<ReplacementCallback> = Deserialize::deserialize(deserializer)?;
+        if items.is_empty() {
+            return Err(de::Error::invalid_length(0, &"at least one element"));
         }
 
-        let mut patterns = Vec::with_capacity(accent_def.patterns.len());
-        for (i, (pattern, callback_def)) in accent_def.patterns.into_iter().enumerate() {
-            let callback: ReplacementCallback = match callback_def.try_into() {
-                Err(err) => Err(format!("error in pattern {i}: {pattern}: {err}"))?,
-                Ok(callback) => callback,
-            };
-            patterns.push((pattern, callback));
+        Ok(AnyReplacement(items))
+    }
+}
+
+impl<'de> Deserialize<'de> for WeightedReplacement {
+    fn deserialize<D>(deserializer: D) -> Result<WeightedReplacement, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let weights: Vec<(u64, ReplacementCallback)> = Deserialize::deserialize(deserializer)?;
+        if weights.is_empty() {
+            return Err(de::Error::invalid_length(0, &"at least one element"));
+        }
+        if weights.iter().map(|(i, _)| i).sum::<u64>() == 0 {
+            return Err(de::Error::custom("weights must add up to positive number"));
         }
 
-        Ok(Self { words, patterns })
+        Ok(WeightedReplacement(weights))
     }
-}
-
-impl TryFrom<SeverityDef> for Severity {
-    type Error = String;
-
-    // TODO: these should be in Deserialize implementation when/if it is done
-    fn try_from(severity_def: SeverityDef) -> Result<Self, Self::Error> {
-        Ok(match severity_def {
-            SeverityDef::Replace(body) => Self::Replace(body.try_into()?),
-            SeverityDef::Extend(body) => Self::Extend(body.try_into()?),
-        })
-    }
-}
-#[derive(Debug, Deserialize)]
-pub struct SeverityBodyDef {
-    #[serde(default)]
-    words: Vec<(String, ReplacementCallbackDef)>,
-    #[serde(default)]
-    patterns: Vec<(String, ReplacementCallbackDef)>,
-}
-
-#[derive(Debug, Deserialize)]
-pub enum SeverityDef {
-    Replace(SeverityBodyDef),
-    Extend(SeverityBodyDef),
-}
-
-fn default_bool_true() -> bool {
-    true
 }
 
 impl TryFrom<AccentDef> for Accent {
     type Error = String;
 
-    // NOTE: this should all go away with custom Deserialize hopefully?
     fn try_from(accent_def: AccentDef) -> Result<Self, Self::Error> {
-        let mut words = Vec::with_capacity(accent_def.words.len());
-        for (i, (pattern, callback_def)) in accent_def.words.into_iter().enumerate() {
-            let callback: ReplacementCallback = match callback_def.try_into() {
-                Err(err) => Err(format!("error in word {i}: {pattern}: {err}"))?,
-                Ok(callback) => callback,
-            };
-            words.push((pattern, callback));
-        }
-
-        let mut patterns = Vec::with_capacity(accent_def.patterns.len());
-        for (i, (pattern, callback_def)) in accent_def.patterns.into_iter().enumerate() {
-            let callback: ReplacementCallback = match callback_def.try_into() {
-                Err(err) => Err(format!("error in pattern {i}: {pattern}: {err}"))?,
-                Ok(callback) => callback,
-            };
-            patterns.push((pattern, callback));
-        }
-
-        let mut severities = BTreeMap::new();
-        for (severity_level, severity_def) in accent_def.severities.into_iter() {
-            let severity: Severity = match severity_def.try_into() {
-                Err(err) => Err(format!("error in severity {severity_level}: {err}"))?,
-                Ok(callback) => callback,
-            };
-
-            severities.insert(severity_level, severity);
-        }
-
-        Self::new(accent_def.normalize_case, words, patterns, severities)
+        Self::new(
+            accent_def.normalize_case,
+            accent_def.words,
+            accent_def.patterns,
+            accent_def.severities,
+        )
     }
+}
+
+fn default_bool_true() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize)]
@@ -150,9 +67,9 @@ pub struct AccentDef {
     #[serde(default = "default_bool_true")]
     normalize_case: bool,
     #[serde(default)]
-    words: Vec<(String, ReplacementCallbackDef)>,
+    words: Vec<(String, ReplacementCallback)>,
     #[serde(default)]
-    patterns: Vec<(String, ReplacementCallbackDef)>,
+    patterns: Vec<(String, ReplacementCallback)>,
     #[serde(default)]
-    severities: BTreeMap<u64, SeverityDef>,
+    severities: BTreeMap<u64, Severity>,
 }
