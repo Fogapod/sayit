@@ -13,12 +13,13 @@ exclude = ["/.github", "/examples/accents", "/tests/sample_text.txt"]
 rand = "0.8"
 regex = "1.10"
 log = "0.4"
-ron = { version = "0.8", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 
+[dev-dependencies]
+ron = { version = "0.8" }
+
 [features]
-default = ["ron"]
-ron = ["deserialize", "dep:ron"]
+default = ["deserialize"]
 deserialize = ["dep:serde"]
 
 [profile.dev]

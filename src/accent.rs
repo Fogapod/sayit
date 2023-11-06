@@ -1,3 +1,4 @@
+#[cfg(feature = "deserialize")]
 use crate::deserialize::AccentDef;
 use crate::replacement::{Replacement, ReplacementCallback};
 use crate::severity::Severity;
