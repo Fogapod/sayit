@@ -171,15 +171,6 @@ impl Accent {
 
         result
     }
-
-    #[cfg(feature = "ron")]
-    /// Parses ron formatted string
-    pub fn from_ron(s: &str) -> Result<Self, String> {
-        Self::try_from(
-            ron::from_str::<AccentDef>(s)
-                .map_err(|err| format!("unable to load accent definition: {}", err))?,
-        )
-    }
 }
 
 #[cfg(test)]
@@ -214,17 +205,17 @@ mod tests {
 
     #[test]
     fn ron_minimal() {
-        let _ = Accent::from_ron("()").unwrap();
+        let _ = ron::from_str::<Accent>("()").unwrap();
     }
 
     #[test]
     fn ron_empty() {
-        let _ = Accent::from_ron(r#"(words: [], patterns: [], severities: {})"#).unwrap();
+        let _ = ron::from_str::<Accent>(r#"(words: [], patterns: [], severities: {})"#).unwrap();
     }
 
     #[test]
     fn ron_extend_extends() {
-        let parsed = Accent::from_ron(
+        let parsed = ron::from_str::<Accent>(
             r#"
 (
     words: [("a", Noop)],
@@ -289,7 +280,7 @@ mod tests {
 
     #[test]
     fn ron_replace_replaces() {
-        let parsed = Accent::from_ron(
+        let parsed = ron::from_str::<Accent>(
             r#"
 (
     words: [("a", Noop)],
@@ -345,7 +336,7 @@ mod tests {
 
     #[test]
     fn ron_invalid_callback_any() {
-        assert!(Accent::from_ron(
+        assert!(ron::from_str::<Accent>(
             r#"
 (
     patterns:
@@ -357,12 +348,13 @@ mod tests {
         )
         .err()
         .unwrap()
+        .to_string()
         .contains("at least one element"));
     }
 
     #[test]
     fn ron_invalid_callback_weighted() {
-        assert!(Accent::from_ron(
+        assert!(ron::from_str::<Accent>(
             r#"
 (
     patterns:
@@ -374,9 +366,10 @@ mod tests {
         )
         .err()
         .unwrap()
+        .to_string()
         .contains("at least one element"));
 
-        assert!(Accent::from_ron(
+        assert!(ron::from_str::<Accent>(
             r#"
 (
     patterns:
@@ -393,20 +386,24 @@ mod tests {
         )
         .err()
         .unwrap()
+        .to_string()
         .contains("weights must add up to positive number"));
     }
 
     #[test]
     fn ron_severity_starts_from_0() {
-        assert!(Accent::from_ron(r#"(severities: { 0: Extend(()) })"#)
-            .err()
-            .unwrap()
-            .contains("Severity cannot be 0"));
+        assert!(
+            ron::from_str::<Accent>(r#"(severities: { 0: Extend(()) })"#)
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("Severity cannot be 0")
+        );
     }
 
     #[test]
     fn ron_malformed() {
-        assert!(Accent::from_ron(r#"("borken..."#).is_err());
+        assert!(ron::from_str::<Accent>(r#"("borken..."#).is_err());
     }
 
     #[test]
@@ -481,7 +478,7 @@ mod tests {
 )
 "#;
 
-        let parsed = Accent::from_ron(ron_string).unwrap();
+        let parsed = ron::from_str::<Accent>(ron_string).unwrap();
         let manual = Accent {
             normalize_case: true,
             severities: vec![
@@ -607,7 +604,7 @@ mod tests {
 
     #[test]
     fn duplicates_eliminated() {
-        let parsed = Accent::from_ron(
+        let parsed = ron::from_str::<Accent>(
             r#"
 (
     words: [
@@ -647,7 +644,7 @@ mod tests {
 
     #[test]
     fn severity_selection() {
-        let accent = Accent::from_ron(
+        let accent = ron::from_str::<Accent>(
             r#"
 (
     words: [("severity", Simple("0"))],
@@ -686,7 +683,8 @@ mod tests {
             println!("parsing {}", filename.display());
 
             let accent =
-                Accent::from_ron(&fs::read_to_string(filename).expect("reading file")).unwrap();
+                ron::from_str::<Accent>(&fs::read_to_string(filename).expect("reading file"))
+                    .unwrap();
 
             for severity in accent.severities() {
                 let _ = accent.apply(&sample_text, severity);
