@@ -8,6 +8,8 @@ use regex::Regex;
 
 /// Replaces patterns in text according to rules
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(feature = "deserialize", serde(try_from = "AccentDef"))]
 pub struct Accent {
     normalize_case: bool,
     // a copy of replacements for each severity level, sorted from lowest to highest
