@@ -53,7 +53,7 @@ impl<'de> Deserialize<'de> for WordRegex {
     {
         let s: String = Deserialize::deserialize(deserializer)?;
 
-        Ok(Self::try_from(s).map_err(|err| de::Error::custom(err))?)
+        Self::try_from(s).map_err(de::Error::custom)
     }
 }
 
@@ -64,7 +64,7 @@ impl<'de> Deserialize<'de> for PatternRegex {
     {
         let s: String = Deserialize::deserialize(deserializer)?;
 
-        Ok(Self::try_from(s).map_err(|err| de::Error::custom(err))?)
+        Self::try_from(s).map_err(de::Error::custom)
     }
 }
 
