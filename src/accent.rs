@@ -18,59 +18,32 @@ pub struct Accent {
 }
 
 impl Accent {
-    fn make_replacements(
-        words: Vec<(String, ReplacementCallback)>,
-        patterns: Vec<(String, ReplacementCallback)>,
-    ) -> Result<Vec<Replacement>, String> {
-        let mut replacements = Vec::with_capacity(words.len() + patterns.len());
-
-        for (i, (pattern, replacement)) in words.into_iter().enumerate() {
-            // ignorecase only if input is lowercase
-            let regex_flags = if pattern.chars().all(|c| c.is_ascii_lowercase()) {
-                "mi"
-            } else {
-                "m"
-            };
-            let word_regex = Regex::new(&format!(r"(?{regex_flags})\b{pattern}\b"))
-                .map_err(|err| format!("bad regex for word {}: {}: {}", i, pattern, err))?;
-
-            replacements.push(Replacement {
-                source: word_regex,
+    fn merge_patterns(
+        words: Vec<(Regex, ReplacementCallback)>,
+        patterns: Vec<(Regex, ReplacementCallback)>,
+    ) -> Vec<Replacement> {
+        words
+            .into_iter()
+            .chain(patterns)
+            .map(|(regex, replacement)| Replacement {
+                source: regex,
                 cb: replacement,
-            });
-        }
-
-        for (i, (pattern, replacement)) in patterns.into_iter().enumerate() {
-            // ignorecase only if input is lowercase
-            let regex_flags = if pattern.chars().all(|c| c.is_ascii_lowercase()) {
-                "mi"
-            } else {
-                "m"
-            };
-            let word_regex = Regex::new(&format!(r"(?{regex_flags}){pattern}"))
-                .map_err(|err| format!("bad regex for pattern {}: {}: {}", i, pattern, err))?;
-
-            replacements.push(Replacement {
-                source: word_regex,
-                cb: replacement,
-            });
-        }
-
-        Ok(replacements)
+            })
+            .collect()
     }
 
     // keeps collection order, rewrites left duplicates with right ones
     fn dedup_patterns(
-        collection: Vec<(String, ReplacementCallback)>,
+        collection: Vec<(Regex, ReplacementCallback)>,
         collection_name: &str,
         drop_expected: bool,
-    ) -> Vec<(String, ReplacementCallback)> {
+    ) -> Vec<(Regex, ReplacementCallback)> {
         let mut filtered = vec![];
         let mut seen = BTreeMap::<String, usize>::new();
 
         let mut i = 0;
         for word in collection {
-            if let Some(previous) = seen.get(&word.0) {
+            if let Some(previous) = seen.get(word.0.as_str()) {
                 filtered[*previous] = word.clone();
                 if !drop_expected {
                     log::warn!(
@@ -81,7 +54,7 @@ impl Accent {
                     );
                 }
             } else {
-                seen.insert(word.0.clone(), i);
+                seen.insert(word.0.to_string(), i);
                 filtered.push(word);
                 i += 1;
             }
@@ -92,28 +65,24 @@ impl Accent {
 
     pub(crate) fn new(
         normalize_case: bool,
-        mut words: Vec<(String, ReplacementCallback)>,
-        mut patterns: Vec<(String, ReplacementCallback)>,
+        mut words: Vec<(Regex, ReplacementCallback)>,
+        mut patterns: Vec<(Regex, ReplacementCallback)>,
         severities_def: BTreeMap<u64, Severity>,
-    ) -> Result<Self, String> {
+    ) -> Self {
         words = Self::dedup_patterns(words, "words", false);
         patterns = Self::dedup_patterns(patterns, "patterns", false);
 
         let mut severities = Vec::with_capacity(severities_def.len());
 
-        severities.push((0, Self::make_replacements(words.clone(), patterns.clone())?));
+        severities.push((0, Self::merge_patterns(words.clone(), patterns.clone())));
 
         for (severity, override_or_addition) in severities_def {
-            if severity == 0 {
-                return Err("Severity cannot be 0 since 0 is base one".to_owned());
-            }
-
             let replacements = match override_or_addition {
                 Severity::Replace(overrides) => {
                     words = Self::dedup_patterns(overrides.words, "words", false);
                     patterns = Self::dedup_patterns(overrides.patterns, "patterns", false);
 
-                    Self::make_replacements(words.clone(), patterns.clone())?
+                    Self::merge_patterns(words.clone(), patterns.clone())
                 }
                 Severity::Extend(additions) => {
                     // no duplicates are allowed inside new definitions
@@ -130,17 +99,17 @@ impl Accent {
                     words = Self::dedup_patterns(words, "words", true);
                     patterns = Self::dedup_patterns(patterns, "patterns", true);
 
-                    Self::make_replacements(words.clone(), patterns.clone())?
+                    Self::merge_patterns(words.clone(), patterns.clone())
                 }
             };
 
             severities.push((severity, replacements));
         }
 
-        Ok(Self {
+        Self {
             normalize_case,
             severities,
-        })
+        }
     }
 
     /// Returns all registered severities in ascending order. Note that there may be gaps
@@ -189,17 +158,16 @@ mod tests {
             vec![],
             vec![
                 (
-                    r"(?-i)[a-z]".to_owned(),
+                    Regex::new(r"(?-i)[a-z]").unwrap(),
                     ReplacementCallback::Simple(SimpleString::new("e")),
                 ),
                 (
-                    r"(?-i)[A-Z]".to_owned(),
+                    Regex::new(r"(?-i)[A-Z]").unwrap(),
                     ReplacementCallback::Simple(SimpleString::new("E")),
                 ),
             ],
             BTreeMap::new(),
-        )
-        .unwrap();
+        );
 
         assert_eq!(e.apply("Hello World!", 0), "Eeeee Eeeee!");
     }
@@ -398,7 +366,7 @@ mod tests {
                 .err()
                 .unwrap()
                 .to_string()
-                .contains("Severity cannot be 0")
+                .contains("severity cannot be 0")
         );
     }
 

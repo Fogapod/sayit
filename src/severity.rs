@@ -1,12 +1,15 @@
+use regex::Regex;
+
+#[cfg(feature = "deserialize")]
+use crate::deserialize::SeverityBodyDef;
 use crate::replacement::ReplacementCallback;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(feature = "deserialize", serde(from = "SeverityBodyDef"))]
 pub(crate) struct SeverityBody {
-    #[cfg_attr(feature = "deserialize", serde(default))]
-    pub(crate) words: Vec<(String, ReplacementCallback)>,
-    #[cfg_attr(feature = "deserialize", serde(default))]
-    pub(crate) patterns: Vec<(String, ReplacementCallback)>,
+    pub(crate) words: Vec<(Regex, ReplacementCallback)>,
+    pub(crate) patterns: Vec<(Regex, ReplacementCallback)>,
 }
 
 /// Either replaces everything from previous severity using `Replace` or adds new words and
