@@ -14,7 +14,7 @@
     // this is same as `patterns` except that each regex is surrounded with \b to avoid copypasting.
     // `words` are applied before `patterns`
     words: [
-        // this is the simplest rule to replace all "windows" words (separated by regex \b) 
+        // this is the simplest rule to replace all "windows" words (separated by regex \b)
         // occurences with "linux", case sensitive
         ("windows", Simple("linux")),
         // this replaces word "OS" with one of replacements, with equal probability

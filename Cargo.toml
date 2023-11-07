@@ -3,9 +3,17 @@ name = "pink_accents"
 version = "0.0.1"
 authors = ["fogapod"]
 edition = "2021"
-description = "Accent system based on string pattern matching"
+description = "Replacement of patterns in string to simulate speech accents"
+repository = "https://github.com/Fogapod/pink_accents"
+homepage = "https://github.com/Fogapod/pink_accents"
 license = "AGPL-3.0"
-exclude = ["/.github", "/examples/accents", "/tests/sample_text.txt"]
+keywords = ["text"]
+categories = ["text-processing"]
+exclude = [
+    "/.github",
+    "/examples",
+    "/tests/sample_text.txt",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

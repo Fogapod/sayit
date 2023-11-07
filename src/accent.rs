@@ -647,7 +647,7 @@ mod tests {
     fn example_accents() {
         let sample_text = fs::read_to_string("tests/sample_text.txt").expect("reading sample text");
 
-        for file in fs::read_dir("examples/accents").expect("read symlinked accents folder") {
+        for file in fs::read_dir("examples").expect("read symlinked accents folder") {
             let filename = file.expect("getting file info").path();
             println!("parsing {}", filename.display());
 
