@@ -1,4 +1,4 @@
-use crate::utils::{normalize_case, SimpleString};
+use crate::utils::SimpleString;
 
 use rand::seq::SliceRandom;
 use regex::{Captures, Regex};
@@ -62,7 +62,7 @@ impl ReplacementCallback {
             Self::Noop => caps[0].to_owned(),
             Self::Simple(string) => {
                 if normalize_case_ {
-                    normalize_case(&caps[0], string)
+                    string.mimic_ascii_case(&caps[0])
                 } else {
                     string.body.clone()
                 }
