@@ -1,6 +1,6 @@
 [package]
 name = "pink_accents"
-version = "0.0.1"
+version = "0.0.3"
 authors = ["fogapod"]
 edition = "2021"
 description = "Replacement of patterns in string to simulate speech accents"
@@ -14,8 +14,6 @@ exclude = [
     "/examples",
     "/tests/sample_text.txt",
 ]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 rand = "0.8"
