@@ -3,5 +3,6 @@ mod accent;
 mod deserialize;
 mod replacement;
 mod severity;
+mod utils;
 
 pub use accent::Accent;

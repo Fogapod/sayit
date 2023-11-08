@@ -1,6 +1,7 @@
 use crate::accent::Accent;
-use crate::replacement::{AnyReplacement, ReplacementCallback, SimpleString, WeightedReplacement};
+use crate::replacement::{AnyReplacement, ReplacementCallback, WeightedReplacement};
 use crate::severity::{Severity, SeverityBody};
+use crate::utils::SimpleString;
 
 use regex::Regex;
 use serde::{de, Deserialize, Deserializer};

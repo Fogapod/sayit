@@ -1,26 +1,7 @@
+use crate::utils::{normalize_case, SimpleString};
+
 use rand::seq::SliceRandom;
 use regex::{Captures, Regex};
-
-#[derive(Debug, PartialEq, Clone)]
-pub(crate) struct SimpleString {
-    body: String,
-    char_count: usize,
-    is_ascii_only: bool,
-    is_ascii_lowercase: bool,
-    is_ascii_uppercase: bool,
-}
-
-impl SimpleString {
-    pub(crate) fn new(body: &str) -> Self {
-        Self {
-            body: body.to_owned(),
-            char_count: body.chars().count(),
-            is_ascii_only: body.is_ascii(),
-            is_ascii_lowercase: body.chars().all(|c| c.is_ascii_lowercase()),
-            is_ascii_uppercase: body.chars().all(|c| c.is_ascii_lowercase()),
-        }
-    }
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct AnyReplacement(pub(crate) Vec<ReplacementCallback>);
@@ -49,71 +30,59 @@ pub(crate) enum ReplacementCallback {
 }
 
 impl ReplacementCallback {
-    // try to learn something about strings and adjust case accordingly. all logic is currently
-    // ascii only
-    // tried using Cows but my computer exploded. TODO: try that again
-    fn normalize_case(old: &str, new: &SimpleString) -> String {
-        let mut body = new.body.clone();
-
-        // assume lowercase ascii is "weakest" form. anything else returns as is
-        if !new.is_ascii_lowercase {
-            return body;
-        }
-
-        // if original was all uppercase we force all uppercase for replacement. this is likely to
-        // give false positives on short inputs like "I" or abbreviations
-        if old.chars().all(|c| c.is_ascii_uppercase()) {
-            return body.to_ascii_uppercase();
-        }
-
-        // no constraints if original was all lowercase
-        if old.chars().all(|c| !c.is_ascii() || c.is_ascii_lowercase()) {
-            return body;
-        }
-
-        if old.chars().count() == new.char_count {
-            for (i, c_old) in old.chars().enumerate() {
-                if c_old.is_ascii_lowercase() {
-                    body.get_mut(i..i + 1)
-                        .expect("strings have same len")
-                        .make_ascii_lowercase()
-                } else if c_old.is_ascii_uppercase() {
-                    body.get_mut(i..i + 1)
-                        .expect("strings have same len")
-                        .make_ascii_uppercase()
-                }
-            }
-        }
-
-        body
+    // FIXME: i dont know why these are marked as dead code, these are used in tests a lot. these
+    //        should be made public eventually to allow programmatic accent construction like in
+    //        tests
+    #[allow(dead_code)]
+    /// Construct new Noop variant
+    pub(crate) fn new_noop() -> Self {
+        Self::Noop
     }
 
-    fn replace(&self, caps: &Captures, normalize_case: bool) -> String {
+    #[allow(dead_code)]
+    /// Construct new Simple variant
+    pub(crate) fn new_simple(s: &str) -> Self {
+        Self::Simple(SimpleString::new(s))
+    }
+
+    #[allow(dead_code)]
+    /// Construct new Any variant
+    pub(crate) fn new_any(items: Vec<ReplacementCallback>) -> Self {
+        Self::Any(AnyReplacement(items))
+    }
+
+    #[allow(dead_code)]
+    /// Construct new Weights variant
+    pub(crate) fn new_weights(items: Vec<(u64, ReplacementCallback)>) -> Self {
+        Self::Weights(WeightedReplacement(items))
+    }
+
+    fn apply(&self, caps: &Captures, normalize_case_: bool) -> String {
         match self {
             Self::Noop => caps[0].to_owned(),
             Self::Simple(string) => {
-                if normalize_case {
-                    Self::normalize_case(&caps[0], string)
+                if normalize_case_ {
+                    normalize_case(&caps[0], string)
                 } else {
                     string.body.clone()
                 }
             }
-            Self::Any(AnyReplacement(targets)) => {
+            Self::Any(AnyReplacement(items)) => {
                 let mut rng = rand::thread_rng();
 
-                targets
+                items
                     .choose(&mut rng)
-                    .expect("empty targets")
-                    .replace(caps, normalize_case)
+                    .expect("empty Any")
+                    .apply(caps, normalize_case_)
             }
             Self::Weights(WeightedReplacement(items)) => {
                 let mut rng = rand::thread_rng();
 
                 items
                     .choose_weighted(&mut rng, |item| item.0)
-                    .expect("empty targets")
+                    .expect("empty Weights")
                     .1
-                    .replace(caps, normalize_case)
+                    .apply(caps, normalize_case_)
             }
         }
     }
@@ -129,9 +98,7 @@ pub(crate) struct Replacement {
 impl Replacement {
     pub(crate) fn apply(&self, text: &str, normalize_case: bool) -> String {
         self.source
-            .replace_all(text, |caps: &Captures| {
-                self.cb.replace(caps, normalize_case)
-            })
+            .replace_all(text, |caps: &Captures| self.cb.apply(caps, normalize_case))
             .into_owned()
     }
 }
@@ -144,134 +111,55 @@ impl PartialEq for Replacement {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use regex::Regex;
 
-    #[test]
-    fn normalize_case_input_lowercase() {
-        assert_eq!(
-            ReplacementCallback::normalize_case("hello", &SimpleString::new("bye")),
-            "bye"
-        );
-        assert_eq!(
-            ReplacementCallback::normalize_case("hello", &SimpleString::new("Bye")),
-            "Bye"
-        );
-        assert_eq!(
-            ReplacementCallback::normalize_case("hello", &SimpleString::new("bYE")),
-            "bYE"
-        );
-    }
-
-    // questionable rule, becomes overcomplicated
-    // #[test]
-    // fn normalize_case_input_titled() {
-    //     assert_eq!(
-    //         ReplacementCallback::normalize_case("Hello", &SimpleString::new("bye")),
-    //         "Bye"
-    //     );
-    //     // has case variation -- do not touch it
-    //     assert_eq!(
-    //         ReplacementCallback::normalize_case("Hello", &SimpleString::new("bYe")),
-    //         "bYe"
-    //     );
-    //     // not ascii uppercase
-    //     assert_eq!(
-    //         ReplacementCallback::normalize_case("Привет", &SimpleString::new("bye")),
-    //         "bye"
-    //     );
-    // }
-
-    #[test]
-    fn normalize_case_input_uppercase() {
-        assert_eq!(
-            ReplacementCallback::normalize_case("HELLO", &SimpleString::new("bye")),
-            "BYE"
-        );
-        // has case variation -- do not touch it
-        assert_eq!(
-            ReplacementCallback::normalize_case("HELLO", &SimpleString::new("bYE")),
-            "bYE"
-        );
-        // not ascii uppercase
-        assert_eq!(
-            ReplacementCallback::normalize_case("ПРИВЕТ", &SimpleString::new("bye")),
-            "bye"
-        );
-        assert_eq!(
-            ReplacementCallback::normalize_case("HELLO", &SimpleString::new("пока")),
-            "пока"
-        );
-    }
-
-    #[test]
-    fn normalize_case_input_different_case() {
-        assert_eq!(
-            ReplacementCallback::normalize_case("hELLO", &SimpleString::new("bye")),
-            "bye"
-        );
-    }
-
-    #[test]
-    fn normalize_case_input_different_case_same_len() {
-        assert_eq!(
-            ReplacementCallback::normalize_case("hELLO", &SimpleString::new("byeee")),
-            "bYEEE"
-        );
-        assert_eq!(
-            ReplacementCallback::normalize_case("hI!", &SimpleString::new("bye")),
-            "bYe"
-        );
-        assert_eq!(
-            ReplacementCallback::normalize_case("hI!", &SimpleString::new("Bye")),
-            "Bye"
-        );
-    }
+    use super::ReplacementCallback;
 
     #[test]
     fn callback_none() {
-        let replacement = ReplacementCallback::Noop;
+        let replacement = ReplacementCallback::new_noop();
 
         let bar_capture = Regex::new("bar").unwrap().captures("bar").unwrap();
         let foo_capture = Regex::new("foo").unwrap().captures("foo").unwrap();
 
-        assert_eq!(replacement.replace(&bar_capture, false), "bar".to_owned());
-        assert_eq!(replacement.replace(&foo_capture, false), "foo".to_owned());
+        assert_eq!(replacement.apply(&bar_capture, false), "bar".to_owned());
+        assert_eq!(replacement.apply(&foo_capture, false), "foo".to_owned());
     }
 
     #[test]
     fn callback_simple() {
-        let replacement = ReplacementCallback::Simple(SimpleString::new("bar"));
+        let replacement = ReplacementCallback::new_simple("bar");
 
         let bar_capture = Regex::new("bar").unwrap().captures("bar").unwrap();
         let foo_capture = Regex::new("foo").unwrap().captures("foo").unwrap();
 
-        assert_eq!(replacement.replace(&bar_capture, false), "bar".to_owned());
-        assert_eq!(replacement.replace(&foo_capture, false), "bar".to_owned());
+        assert_eq!(replacement.apply(&bar_capture, false), "bar".to_owned());
+        assert_eq!(replacement.apply(&foo_capture, false), "bar".to_owned());
     }
 
     #[test]
     fn callback_any() {
-        let replacement = ReplacementCallback::Any(AnyReplacement(vec![
-            ReplacementCallback::Simple(SimpleString::new("bar")),
-            ReplacementCallback::Simple(SimpleString::new("baz")),
-        ]));
+        let replacement = ReplacementCallback::new_any(vec![
+            ReplacementCallback::new_simple("bar"),
+            ReplacementCallback::new_simple("baz"),
+        ]);
 
         let bar_capture = Regex::new("bar").unwrap().captures("bar").unwrap();
-        let selected = replacement.replace(&bar_capture, false);
+        let selected = replacement.apply(&bar_capture, false);
 
         assert!(vec!["bar".to_owned(), "baz".to_owned()].contains(&selected));
     }
 
     #[test]
     fn callback_weights() {
-        let replacement = ReplacementCallback::Weights(WeightedReplacement(vec![
-            (1, ReplacementCallback::Simple(SimpleString::new("bar"))),
-            (1, ReplacementCallback::Simple(SimpleString::new("baz"))),
-            (0, ReplacementCallback::Simple(SimpleString::new("spam"))),
-        ]));
+        let replacement = ReplacementCallback::new_weights(vec![
+            (1, ReplacementCallback::new_simple("bar")),
+            (1, ReplacementCallback::new_simple("baz")),
+            (0, ReplacementCallback::new_simple("spam")),
+        ]);
 
         let bar_capture = Regex::new("bar").unwrap().captures("bar").unwrap();
-        let selected = replacement.replace(&bar_capture, false);
+        let selected = replacement.apply(&bar_capture, false);
 
         assert!(vec!["bar".to_owned(), "baz".to_owned()].contains(&selected));
     }

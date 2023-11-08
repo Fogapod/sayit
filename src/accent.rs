@@ -145,11 +145,11 @@ impl Accent {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use regex::Regex;
+    use std::{collections::BTreeMap, fs, vec};
 
-    use crate::replacement::{AnyReplacement, SimpleString, WeightedReplacement};
-
-    use std::{fs, vec};
+    use crate::replacement::{Replacement, ReplacementCallback};
+    use crate::Accent;
 
     #[test]
     fn e() {
@@ -159,11 +159,11 @@ mod tests {
             vec![
                 (
                     Regex::new(r"(?-i)[a-z]").unwrap(),
-                    ReplacementCallback::Simple(SimpleString::new("e")),
+                    ReplacementCallback::new_simple("e"),
                 ),
                 (
                     Regex::new(r"(?-i)[A-Z]").unwrap(),
-                    ReplacementCallback::Simple(SimpleString::new("E")),
+                    ReplacementCallback::new_simple("E"),
                 ),
             ],
             BTreeMap::new(),
@@ -456,45 +456,45 @@ mod tests {
                     vec![
                         Replacement {
                             source: Regex::new(r"(?mi)\btest\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new(
+                            cb: ReplacementCallback::new_simple(
                                 "Testing in progress; Please ignore ...",
-                            )),
+                            ),
                         },
                         Replacement {
                             source: Regex::new(r"(?mi)\bbadword\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("")),
+                            cb: ReplacementCallback::new_simple(""),
                         },
                         Replacement {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("0")),
+                            cb: ReplacementCallback::new_simple("0"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)[a-z]").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("e")),
+                            cb: ReplacementCallback::new_simple("e"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)[A-Z]").unwrap(),
-                            cb: ReplacementCallback::Weights(WeightedReplacement(vec![
-                                (5, ReplacementCallback::Simple(SimpleString::new("E"))),
-                                (1, ReplacementCallback::Simple(SimpleString::new("Ē"))),
-                                (1, ReplacementCallback::Simple(SimpleString::new("Ê"))),
-                                (1, ReplacementCallback::Simple(SimpleString::new("Ë"))),
-                                (1, ReplacementCallback::Simple(SimpleString::new("È"))),
-                                (1, ReplacementCallback::Simple(SimpleString::new("É"))),
-                            ])),
+                            cb: ReplacementCallback::new_weights(vec![
+                                (5, ReplacementCallback::new_simple("E")),
+                                (1, ReplacementCallback::new_simple("Ē")),
+                                (1, ReplacementCallback::new_simple("Ê")),
+                                (1, ReplacementCallback::new_simple("Ë")),
+                                (1, ReplacementCallback::new_simple("È")),
+                                (1, ReplacementCallback::new_simple("É")),
+                            ]),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)[0-9]").unwrap(),
-                            cb: ReplacementCallback::Any(AnyReplacement(vec![
-                                ReplacementCallback::Weights(WeightedReplacement(vec![(
+                            cb: ReplacementCallback::new_any(vec![
+                                ReplacementCallback::new_weights(vec![(
                                     1,
-                                    ReplacementCallback::Any(AnyReplacement(vec![
-                                        ReplacementCallback::Simple(SimpleString::new("6")),
-                                        ReplacementCallback::Simple(SimpleString::new("9")),
-                                        ReplacementCallback::Noop,
-                                    ])),
-                                )])),
-                            ])),
+                                    ReplacementCallback::new_any(vec![
+                                        ReplacementCallback::new_simple("6"),
+                                        ReplacementCallback::new_simple("9"),
+                                        ReplacementCallback::new_noop(),
+                                    ]),
+                                )]),
+                            ]),
                         },
                     ],
                 ),
@@ -503,23 +503,23 @@ mod tests {
                     vec![
                         Replacement {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("words")),
+                            cb: ReplacementCallback::new_simple("words"),
                         },
                         Replacement {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("1")),
+                            cb: ReplacementCallback::new_simple("1"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("Linux")),
+                            cb: ReplacementCallback::new_simple("Linux"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("multiple A's")),
+                            cb: ReplacementCallback::new_simple("multiple A's"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("start")),
+                            cb: ReplacementCallback::new_simple("start"),
                         },
                     ],
                 ),
@@ -528,35 +528,35 @@ mod tests {
                     vec![
                         Replacement {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("words")),
+                            cb: ReplacementCallback::new_simple("words"),
                         },
                         Replacement {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("2")),
+                            cb: ReplacementCallback::new_simple("2"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("Linux")),
+                            cb: ReplacementCallback::new_simple("Linux"),
                         },
                         Replacement {
                             source: Regex::new(r"(?mi)\badded\b").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("words")),
+                            cb: ReplacementCallback::new_simple("words"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("multiple A's")),
+                            cb: ReplacementCallback::new_simple("multiple A's"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("start")),
+                            cb: ReplacementCallback::new_simple("start"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)b+").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("multiple B's")),
+                            cb: ReplacementCallback::new_simple("multiple B's"),
                         },
                         Replacement {
                             source: Regex::new(r"(?m)$").unwrap(),
-                            cb: ReplacementCallback::Simple(SimpleString::new("end")),
+                            cb: ReplacementCallback::new_simple("end"),
                         },
                     ],
                 ),
@@ -598,11 +598,11 @@ mod tests {
                 vec![
                     Replacement {
                         source: Regex::new(r"(?mi)\bdupew\b").unwrap(),
-                        cb: ReplacementCallback::Simple(SimpleString::new("2")),
+                        cb: ReplacementCallback::new_simple("2"),
                     },
                     Replacement {
                         source: Regex::new(r"(?mi)dupep").unwrap(),
-                        cb: ReplacementCallback::Simple(SimpleString::new("2")),
+                        cb: ReplacementCallback::new_simple("2"),
                     },
                 ],
             )],
