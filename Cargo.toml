@@ -25,6 +25,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 ron = { version = "0.8" }
+criterion = { version = "0.4", features = ["html_reports"] }
 
 [features]
 default = ["deserialize"]
@@ -32,3 +33,7 @@ deserialize = ["dep:serde"]
 
 [profile.dev]
 opt-level = 3
+
+[[bench]]
+name = "accents"
+harness = false
