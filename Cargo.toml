@@ -1,6 +1,6 @@
 [package]
 name = "pink_accents"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["fogapod"]
 edition = "2021"
 description = "Replacement of patterns in string to simulate speech accents"
@@ -9,7 +9,14 @@ homepage = "https://github.com/Fogapod/pink_accents"
 license = "AGPL-3.0"
 keywords = ["text"]
 categories = ["text-processing"]
-include = ["/README.md", "/Cargo.toml", "/src/*.rs", "LICENSE"]
+include = [
+    "/README.md",
+    "/Cargo.toml",
+    "/src/*.rs",
+    "LICENSE",
+    # unfortunate but otherwise cargo publish fails becuase there is a bench target
+    "/benches",
+]
 
 [dependencies]
 rand = "0.8"
