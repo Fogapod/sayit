@@ -18,11 +18,11 @@
         ("$", Weights([
             (1, Noop),
             (1, Any([
-                Simple(":D"),
-                Simple(":DD"),
-                Simple(":DDD"),
-                Simple(":DDDD"),
-                Simple(":DDDDD"),
+                Simple(" :D"),
+                Simple(" :DD"),
+                Simple(" :DDD"),
+                Simple(" :DDDD"),
+                Simple(" :DDDDD"),
             ])),
         ])),
     ],
@@ -32,11 +32,11 @@
                 ("$", Weights([
                     (1, Noop),
                     (2, Any([
-                        Simple(":DD"),
-                        Simple(":DDD"),
-                        Simple(":DDDD"),
-                        Simple(":DDDDD"),
-                        Simple(":DDDDDD"),
+                        Simple(" :DD"),
+                        Simple(" :DDD"),
+                        Simple(" :DDDD"),
+                        Simple(" :DDDDD"),
+                        Simple(" :DDDDDD"),
                     ])),
                 ])),
             ],
@@ -51,11 +51,11 @@
         2: Extend((
             patterns: [
                 ("$", Any([
-                    Simple(":DDDD"),
-                    Simple(":DDDDD"),
-                    Simple(":DDDDDD"),
-                    Simple(":DDDDDDD"),
-                    Simple(":DDDDDDDD"),
+                    Simple(" :DDDD"),
+                    Simple(" :DDDDD"),
+                    Simple(" :DDDDDD"),
+                    Simple(" :DDDDDDD"),
+                    Simple(" :DDDDDDDD"),
                 ])),
             ],
             words: [
