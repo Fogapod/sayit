@@ -16,6 +16,7 @@
         )),
         2: Extend((
             patterns: [
+                (".+", Uppercase(Original)),
                 ("$", Any([
                     Simple(" HONK HONK HONK!"),
                     Simple(" HONK HONK HONK HONK!"),

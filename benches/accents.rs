@@ -24,7 +24,7 @@ pub fn read_sample_file_lines() -> Vec<String> {
 fn accents(c: &mut Criterion) {
     let lines = read_sample_file_lines();
 
-    for replacement in ["noop", "simple", "any", "weights"] {
+    for replacement in ["original", "simple", "any", "weights", "uppercase", "lowercase"] {
         let accent = read_accent(&format!("benches/{replacement}.ron"));
 
         c.bench_function(&format!("accents::{replacement}"), |b| {

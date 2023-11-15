@@ -1,5 +1,5 @@
 use crate::accent::Accent;
-use crate::replacement::{AnyReplacement, ReplacementCallback, WeightedReplacement};
+use crate::replacement::{AnyReplacement, Replacement, WeightedReplacement};
 use crate::severity::{Severity, SeverityBody};
 use crate::utils::SimpleString;
 
@@ -21,7 +21,7 @@ impl<'de> Deserialize<'de> for AnyReplacement {
     where
         D: Deserializer<'de>,
     {
-        let items: Vec<ReplacementCallback> = Deserialize::deserialize(deserializer)?;
+        let items: Vec<Replacement> = Deserialize::deserialize(deserializer)?;
         if items.is_empty() {
             return Err(de::Error::invalid_length(0, &"at least one element"));
         }
@@ -35,7 +35,7 @@ impl<'de> Deserialize<'de> for WeightedReplacement {
     where
         D: Deserializer<'de>,
     {
-        let weights: Vec<(u64, ReplacementCallback)> = Deserialize::deserialize(deserializer)?;
+        let weights: Vec<(u64, Replacement)> = Deserialize::deserialize(deserializer)?;
         if weights.is_empty() {
             return Err(de::Error::invalid_length(0, &"at least one element"));
         }
@@ -111,9 +111,9 @@ impl TryFrom<String> for PatternRegex {
 #[derive(Debug, Deserialize)]
 pub(crate) struct SeverityBodyDef {
     #[serde(default)]
-    words: Vec<(WordRegex, ReplacementCallback)>,
+    words: Vec<(WordRegex, Replacement)>,
     #[serde(default)]
-    patterns: Vec<(PatternRegex, ReplacementCallback)>,
+    patterns: Vec<(PatternRegex, Replacement)>,
 }
 
 impl From<SeverityBodyDef> for SeverityBody {
@@ -142,9 +142,9 @@ pub(crate) struct AccentDef {
     #[serde(default = "default_bool_true")]
     normalize_case: bool,
     #[serde(default)]
-    words: Vec<(WordRegex, ReplacementCallback)>,
+    words: Vec<(WordRegex, Replacement)>,
     #[serde(default)]
-    patterns: Vec<(PatternRegex, ReplacementCallback)>,
+    patterns: Vec<(PatternRegex, Replacement)>,
     #[serde(default)]
     severities: BTreeMap<u64, Severity>,
 }

@@ -16,7 +16,7 @@
         ("x", Simple("gs")),
         (r"\Bng\b", Simple("gn")),
         ("$", Weights([
-            (1, Noop),
+            (1, Original),
             (1, Any([
                 Simple(" :D"),
                 Simple(" :DD"),
@@ -30,7 +30,7 @@
         1: Extend((
             patterns: [
                 ("$", Weights([
-                    (1, Noop),
+                    (1, Original),
                     (2, Any([
                         Simple(" :DD"),
                         Simple(" :DDD"),

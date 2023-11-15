@@ -13,10 +13,12 @@ Each rule consists of regex pattern and a replacement. When regex match occurs t
 
 Possible replacements are:
 
-- `Noop`: Do not replace
+- `Original`: Do not replace
 - `Simple`: Puts string as is
 - `Any` (recursive): Selects random replacement with equal weights
 - `Weights` (recursive): Selects replacement based on relative weights
+- `Uppercase` (recursive): Converts inner result to uppercase
+- `Lowercase` (recursive): Converts inner result to lowercase
 
 ## Serialized format
 
@@ -57,6 +59,10 @@ Full reference:
             // ultra rare sigma honk - 1 / 56
             (01, Simple(" HONK HONK HONK HONK!!!!!!!!!!!!!!!")),
         ])),
+        // lowercases all `p` letters (use "p" match from `Original`, then lowercase)
+        ("p", Lowercase(Original)),
+        // uppercases all `p` letters, undoing previous operation
+        ("p", Uppercase(Original)),
     ],
 
     // accent can be used with severity (non negative value). higher severities can either extend
@@ -88,7 +94,7 @@ Full reference:
                             Simple("É"),
                         ])),
                         // 50% to do nothing, no replacement
-                        (1, Noop),
+                        (1, Original),
                     ])),
                 ],
             ),

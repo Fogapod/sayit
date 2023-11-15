@@ -3,11 +3,11 @@
 
     patterns: [
         ("a", Any([
-            Noop,
+            Original,
             Simple("B"),
             Simple("Flat"),
         ])),
-        ("VeryLongNonExistent12344343243244234", Any([Noop])),
+        ("VeryLongNonExistent12344343243244234", Any([Original])),
         ("you", Any([
             Any([
             Any([

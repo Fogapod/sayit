@@ -3,7 +3,7 @@
 
     patterns: [
         ("a", Weights([(1, Simple("B"))])),
-        ("VeryLongNonExistent12344343243244234", Weights([(10000, Noop)])),
+        ("VeryLongNonExistent12344343243244234", Weights([(10000, Original)])),
         ("you", Weights([
             (1, Weights([(1, Simple("1"))])),
             (2, Weights([(1, Simple("2"))])),

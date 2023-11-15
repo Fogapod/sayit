@@ -1,6 +1,6 @@
 #[cfg(feature = "deserialize")]
 use crate::deserialize::AccentDef;
-use crate::replacement::{Replacement, ReplacementCallback};
+use crate::replacement::{Replacement, Rule};
 use crate::severity::Severity;
 
 use std::collections::BTreeMap;
@@ -14,30 +14,30 @@ use regex::Regex;
 pub struct Accent {
     normalize_case: bool,
     // a copy of replacements for each severity level, sorted from lowest to highest
-    severities: Vec<(u64, Vec<Replacement>)>,
+    severities: Vec<(u64, Vec<Rule>)>,
 }
 
 impl Accent {
     fn merge_patterns(
-        words: Vec<(Regex, ReplacementCallback)>,
-        patterns: Vec<(Regex, ReplacementCallback)>,
-    ) -> Vec<Replacement> {
+        words: Vec<(Regex, Replacement)>,
+        patterns: Vec<(Regex, Replacement)>,
+    ) -> Vec<Rule> {
         words
             .into_iter()
             .chain(patterns)
-            .map(|(regex, replacement)| Replacement {
+            .map(|(regex, replacement)| Rule {
                 source: regex,
-                cb: replacement,
+                replacement,
             })
             .collect()
     }
 
     // keeps collection order, rewrites left duplicates with right ones
     fn dedup_patterns(
-        collection: Vec<(Regex, ReplacementCallback)>,
+        collection: Vec<(Regex, Replacement)>,
         collection_name: &str,
         drop_expected: bool,
-    ) -> Vec<(Regex, ReplacementCallback)> {
+    ) -> Vec<(Regex, Replacement)> {
         let mut filtered = vec![];
         let mut seen = BTreeMap::<String, usize>::new();
 
@@ -65,8 +65,8 @@ impl Accent {
 
     pub(crate) fn new(
         normalize_case: bool,
-        mut words: Vec<(Regex, ReplacementCallback)>,
-        mut patterns: Vec<(Regex, ReplacementCallback)>,
+        mut words: Vec<(Regex, Replacement)>,
+        mut patterns: Vec<(Regex, Replacement)>,
         severities_def: BTreeMap<u64, Severity>,
     ) -> Self {
         words = Self::dedup_patterns(words, "words", false);
@@ -148,7 +148,7 @@ mod tests {
     use regex::Regex;
     use std::{collections::BTreeMap, fs, vec};
 
-    use crate::replacement::{Replacement, ReplacementCallback};
+    use crate::replacement::{Replacement, Rule};
     use crate::Accent;
 
     #[test]
@@ -159,11 +159,11 @@ mod tests {
             vec![
                 (
                     Regex::new(r"(?-i)[a-z]").unwrap(),
-                    ReplacementCallback::new_simple("e"),
+                    Replacement::new_simple("e"),
                 ),
                 (
                     Regex::new(r"(?-i)[A-Z]").unwrap(),
-                    ReplacementCallback::new_simple("E"),
+                    Replacement::new_simple("E"),
                 ),
             ],
             BTreeMap::new(),
@@ -187,13 +187,13 @@ mod tests {
         let parsed = ron::from_str::<Accent>(
             r#"
 (
-    words: [("a", Noop)],
-    patterns: [("1", Noop)],
+    words: [("a", Original)],
+    patterns: [("1", Original)],
     severities: {
         1: Extend(
             (
-                words: [("b", Noop)],
-                patterns: [("2", Noop)],
+                words: [("b", Original)],
+                patterns: [("2", Original)],
             )
 
         ),
@@ -209,34 +209,34 @@ mod tests {
                 (
                     0,
                     vec![
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new("(?m)1").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
                     ],
                 ),
                 (
                     1,
                     vec![
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\bb\b").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new("(?m)1").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new("(?m)2").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
                     ],
                 ),
@@ -252,13 +252,13 @@ mod tests {
         let parsed = ron::from_str::<Accent>(
             r#"
 (
-    words: [("a", Noop)],
-    patterns: [("1", Noop)],
+    words: [("a", Original)],
+    patterns: [("1", Original)],
     severities: {
         1: Replace(
             (
-                words: [("b", Noop)],
-                patterns: [("2", Noop)],
+                words: [("b", Original)],
+                patterns: [("2", Original)],
             )
 
         ),
@@ -274,26 +274,26 @@ mod tests {
                 (
                     0,
                     vec![
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new("(?m)1").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
                     ],
                 ),
                 (
                     1,
                     vec![
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\bb\b").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new("(?m)2").unwrap(),
-                            cb: ReplacementCallback::Noop,
+                            replacement: Replacement::new_original(),
                         },
                     ],
                 ),
@@ -304,7 +304,7 @@ mod tests {
     }
 
     #[test]
-    fn ron_invalid_callback_any() {
+    fn ron_invalid_replacement_any() {
         assert!(ron::from_str::<Accent>(
             r#"
 (
@@ -322,7 +322,7 @@ mod tests {
     }
 
     #[test]
-    fn ron_invalid_callback_weighted() {
+    fn ron_invalid_replacement_weighted() {
         assert!(ron::from_str::<Accent>(
             r#"
 (
@@ -345,8 +345,8 @@ mod tests {
         [
             ("a", Weights(
                 [
-                    (0, Noop),
-                    (0, Noop),
+                    (0, Original),
+                    (0, Original),
                 ]
             ))
         ]
@@ -409,7 +409,7 @@ mod tests {
                             [
                               Simple("6"),
                               Simple("9"),
-                              Noop,
+                              Original,
                             ],
                         )),
                     ],
@@ -454,44 +454,44 @@ mod tests {
                 (
                     0,
                     vec![
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\btest\b").unwrap(),
-                            cb: ReplacementCallback::new_simple(
+                            replacement: Replacement::new_simple(
                                 "Testing in progress; Please ignore ...",
                             ),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\bbadword\b").unwrap(),
-                            cb: ReplacementCallback::new_simple(""),
+                            replacement: Replacement::new_simple(""),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            cb: ReplacementCallback::new_simple("0"),
+                            replacement: Replacement::new_simple("0"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)[a-z]").unwrap(),
-                            cb: ReplacementCallback::new_simple("e"),
+                            replacement: Replacement::new_simple("e"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)[A-Z]").unwrap(),
-                            cb: ReplacementCallback::new_weights(vec![
-                                (5, ReplacementCallback::new_simple("E")),
-                                (1, ReplacementCallback::new_simple("Ē")),
-                                (1, ReplacementCallback::new_simple("Ê")),
-                                (1, ReplacementCallback::new_simple("Ë")),
-                                (1, ReplacementCallback::new_simple("È")),
-                                (1, ReplacementCallback::new_simple("É")),
+                            replacement: Replacement::new_weights(vec![
+                                (5, Replacement::new_simple("E")),
+                                (1, Replacement::new_simple("Ē")),
+                                (1, Replacement::new_simple("Ê")),
+                                (1, Replacement::new_simple("Ë")),
+                                (1, Replacement::new_simple("È")),
+                                (1, Replacement::new_simple("É")),
                             ]),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)[0-9]").unwrap(),
-                            cb: ReplacementCallback::new_any(vec![
-                                ReplacementCallback::new_weights(vec![(
+                            replacement: Replacement::new_any(vec![
+                                Replacement::new_weights(vec![(
                                     1,
-                                    ReplacementCallback::new_any(vec![
-                                        ReplacementCallback::new_simple("6"),
-                                        ReplacementCallback::new_simple("9"),
-                                        ReplacementCallback::new_noop(),
+                                    Replacement::new_any(vec![
+                                        Replacement::new_simple("6"),
+                                        Replacement::new_simple("9"),
+                                        Replacement::new_original(),
                                     ]),
                                 )]),
                             ]),
@@ -501,62 +501,62 @@ mod tests {
                 (
                     1,
                     vec![
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            cb: ReplacementCallback::new_simple("words"),
+                            replacement: Replacement::new_simple("words"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            cb: ReplacementCallback::new_simple("1"),
+                            replacement: Replacement::new_simple("1"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            cb: ReplacementCallback::new_simple("Linux"),
+                            replacement: Replacement::new_simple("Linux"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            cb: ReplacementCallback::new_simple("multiple A's"),
+                            replacement: Replacement::new_simple("multiple A's"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            cb: ReplacementCallback::new_simple("start"),
+                            replacement: Replacement::new_simple("start"),
                         },
                     ],
                 ),
                 (
                     2,
                     vec![
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            cb: ReplacementCallback::new_simple("words"),
+                            replacement: Replacement::new_simple("words"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            cb: ReplacementCallback::new_simple("2"),
+                            replacement: Replacement::new_simple("2"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            cb: ReplacementCallback::new_simple("Linux"),
+                            replacement: Replacement::new_simple("Linux"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?mi)\badded\b").unwrap(),
-                            cb: ReplacementCallback::new_simple("words"),
+                            replacement: Replacement::new_simple("words"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            cb: ReplacementCallback::new_simple("multiple A's"),
+                            replacement: Replacement::new_simple("multiple A's"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            cb: ReplacementCallback::new_simple("start"),
+                            replacement: Replacement::new_simple("start"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)b+").unwrap(),
-                            cb: ReplacementCallback::new_simple("multiple B's"),
+                            replacement: Replacement::new_simple("multiple B's"),
                         },
-                        Replacement {
+                        Rule {
                             source: Regex::new(r"(?m)$").unwrap(),
-                            cb: ReplacementCallback::new_simple("end"),
+                            replacement: Replacement::new_simple("end"),
                         },
                     ],
                 ),
@@ -596,13 +596,13 @@ mod tests {
             severities: vec![(
                 0,
                 vec![
-                    Replacement {
+                    Rule {
                         source: Regex::new(r"(?mi)\bdupew\b").unwrap(),
-                        cb: ReplacementCallback::new_simple("2"),
+                        replacement: Replacement::new_simple("2"),
                     },
-                    Replacement {
+                    Rule {
                         source: Regex::new(r"(?mi)dupep").unwrap(),
-                        cb: ReplacementCallback::new_simple("2"),
+                        replacement: Replacement::new_simple("2"),
                     },
                 ],
             )],
