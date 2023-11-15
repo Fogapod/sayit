@@ -23,7 +23,6 @@ impl SimpleString {
 impl SimpleString {
     /// Try to learn something about strings and adjust case accordingly. all logic is currently
     /// ascii only
-    // tried using Cows but my computer exploded. TODO: try that again
     pub(crate) fn mimic_ascii_case(&self, original: &str) -> String {
         let mut body = self.body.clone();
 
