@@ -13,18 +13,18 @@ use regex::Regex;
 #[cfg_attr(feature = "deserialize", serde(try_from = "AccentDef"))]
 pub struct Accent {
     normalize_case: bool,
-    // a copy of replacements for each severity level, sorted from lowest to highest
+    // a set of rules for each severity level, sorted from lowest to highest
     severities: Vec<(u64, Vec<Rule>)>,
 }
 
 impl Accent {
-    fn merge_patterns(
-        words: Vec<(Regex, Replacement)>,
-        patterns: Vec<(Regex, Replacement)>,
+    fn merge_rules(
+        first: Vec<(Regex, Replacement)>,
+        second: Vec<(Regex, Replacement)>,
     ) -> Vec<Rule> {
-        words
+        first
             .into_iter()
-            .chain(patterns)
+            .chain(second)
             .map(|(regex, replacement)| Rule {
                 source: regex,
                 replacement,
@@ -33,9 +33,9 @@ impl Accent {
     }
 
     // keeps collection order, rewrites left duplicates with right ones
-    fn dedup_patterns(
+    fn dedup_rules(
         collection: Vec<(Regex, Replacement)>,
-        collection_name: &str,
+        pretty_name: &str,
         drop_expected: bool,
     ) -> Vec<(Regex, Replacement)> {
         let mut filtered = vec![];
@@ -50,7 +50,7 @@ impl Accent {
                         "{} already present at position {} in {}",
                         word.0,
                         previous,
-                        collection_name,
+                        pretty_name,
                     );
                 }
             } else {
@@ -69,25 +69,25 @@ impl Accent {
         mut patterns: Vec<(Regex, Replacement)>,
         severities_def: BTreeMap<u64, Severity>,
     ) -> Self {
-        words = Self::dedup_patterns(words, "words", false);
-        patterns = Self::dedup_patterns(patterns, "patterns", false);
+        words = Self::dedup_rules(words, "words", false);
+        patterns = Self::dedup_rules(patterns, "patterns", false);
 
         let mut severities = Vec::with_capacity(severities_def.len());
 
-        severities.push((0, Self::merge_patterns(words.clone(), patterns.clone())));
+        severities.push((0, Self::merge_rules(words.clone(), patterns.clone())));
 
         for (severity, override_or_addition) in severities_def {
-            let replacements = match override_or_addition {
+            let rules = match override_or_addition {
                 Severity::Replace(overrides) => {
-                    words = Self::dedup_patterns(overrides.words, "words", false);
-                    patterns = Self::dedup_patterns(overrides.patterns, "patterns", false);
+                    words = Self::dedup_rules(overrides.words, "words", false);
+                    patterns = Self::dedup_rules(overrides.patterns, "patterns", false);
 
-                    Self::merge_patterns(words.clone(), patterns.clone())
+                    Self::merge_rules(words.clone(), patterns.clone())
                 }
                 Severity::Extend(additions) => {
                     // no duplicates are allowed inside new definitions
-                    let new_words = Self::dedup_patterns(additions.words, "words", false);
-                    let new_patterns = Self::dedup_patterns(additions.patterns, "patterns", false);
+                    let new_words = Self::dedup_rules(additions.words, "words", false);
+                    let new_patterns = Self::dedup_rules(additions.patterns, "patterns", false);
 
                     // NOTE: we do not just add everything to the end of `replacements`. words and
                     // patterns maintain relative order where words are always first
@@ -96,14 +96,14 @@ impl Accent {
 
                     // we deduped old and new words separately, now they are merged. dedup again
                     // without warnings. new ones take priority over old while keeping position
-                    words = Self::dedup_patterns(words, "words", true);
-                    patterns = Self::dedup_patterns(patterns, "patterns", true);
+                    words = Self::dedup_rules(words, "words", true);
+                    patterns = Self::dedup_rules(patterns, "patterns", true);
 
-                    Self::merge_patterns(words.clone(), patterns.clone())
+                    Self::merge_rules(words.clone(), patterns.clone())
                 }
             };
 
-            severities.push((severity, replacements));
+            severities.push((severity, rules));
         }
 
         Self {
