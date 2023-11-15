@@ -1,6 +1,6 @@
 [package]
 name = "pink_accents"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["fogapod"]
 edition = "2021"
 description = "Replacement of patterns in string to simulate speech accents"
