@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::utils::SimpleString;
 
 use rand::seq::SliceRandom;
@@ -73,23 +75,27 @@ impl Replacement {
         Self::Lowercase(Box::new(inner))
     }
 
-    fn apply(&self, caps: &Captures, normalize_case: bool) -> String {
+    fn apply<'a>(&self, caps: &Captures, input: &'a str, normalize_case: bool) -> Cow<'a, str> {
+        // FIXME: use caps directly instead of indexing input. this is a bug of regex lifetimes:
+        //        https://github.com/rust-lang/regex/discussions/775
         match self {
-            Self::Original => caps[0].to_owned(),
-            Self::Simple(string) => {
-                if normalize_case {
-                    string.mimic_ascii_case(&caps[0])
-                } else {
-                    string.body.clone()
-                }
+            Self::Original => {
+                Cow::from(&input[caps.get(0).expect("match 0 is always present").range()])
             }
+            Self::Simple(string) => Cow::from(if normalize_case {
+                string.mimic_ascii_case(
+                    &input[caps.get(0).expect("match 0 is always present").range()],
+                )
+            } else {
+                string.body.clone()
+            }),
             Self::Any(AnyReplacement(items)) => {
                 let mut rng = rand::thread_rng();
 
                 items
                     .choose(&mut rng)
                     .expect("empty Any")
-                    .apply(caps, normalize_case)
+                    .apply(caps, input, normalize_case)
             }
             Self::Weights(WeightedReplacement(items)) => {
                 let mut rng = rand::thread_rng();
@@ -98,13 +104,13 @@ impl Replacement {
                     .choose_weighted(&mut rng, |item| item.0)
                     .expect("empty Weights")
                     .1
-                    .apply(caps, normalize_case)
+                    .apply(caps, input, normalize_case)
             }
             Replacement::Uppercase(inner) => {
-                inner.apply(caps, false).to_uppercase()
+                Cow::Owned(inner.apply(caps, input, false).to_uppercase())
             }
             Replacement::Lowercase(inner) => {
-                inner.apply(caps, false).to_lowercase()
+                Cow::Owned(inner.apply(caps, input, false).to_lowercase())
             }
         }
     }
@@ -118,10 +124,14 @@ pub(crate) struct Rule {
 }
 
 impl Rule {
-    pub(crate) fn apply(&self, text: &str, normalize_case: bool) -> String {
-        self.source
-            .replace_all(text, |caps: &Captures| self.replacement.apply(caps, normalize_case))
-            .into_owned()
+    pub(crate) fn apply<'input>(
+        &self,
+        text: &'input str,
+        normalize_case: bool,
+    ) -> Cow<'input, str> {
+        self.source.replace_all(text, |caps: &Captures| {
+            self.replacement.apply(caps, text, normalize_case)
+        })
     }
 }
 
@@ -133,6 +143,8 @@ impl PartialEq for Rule {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use regex::{Captures, Regex};
 
     use super::Replacement;
@@ -144,26 +156,32 @@ mod tests {
             .unwrap()
     }
 
+    fn apply<'a>(
+        replacement: &Replacement,
+        self_matching_pattern: &'a str,
+        normalize_case: bool,
+    ) -> Cow<'a, str> {
+        Cow::from(replacement.apply(
+            &make_captions(self_matching_pattern),
+            self_matching_pattern,
+            normalize_case,
+        ))
+    }
+
     #[test]
     fn original() {
         let replacement = Replacement::new_original();
 
-        let bar_capture = make_captions("bar");
-        let foo_capture = make_captions("foo");
-
-        assert_eq!(replacement.apply(&bar_capture, false), "bar".to_owned());
-        assert_eq!(replacement.apply(&foo_capture, false), "foo".to_owned());
+        assert_eq!(apply(&replacement, "bar", false), "bar");
+        assert_eq!(apply(&replacement, "foo", false), "foo");
     }
 
     #[test]
     fn simple() {
         let replacement = Replacement::new_simple("bar");
 
-        let bar_capture = Regex::new("bar").unwrap().captures("bar").unwrap();
-        let foo_capture = Regex::new("foo").unwrap().captures("foo").unwrap();
-
-        assert_eq!(replacement.apply(&bar_capture, false), "bar".to_owned());
-        assert_eq!(replacement.apply(&foo_capture, false), "bar".to_owned());
+        assert_eq!(apply(&replacement, "foo", false), "bar");
+        assert_eq!(apply(&replacement, "bar", false), "bar");
     }
 
     #[test]
@@ -173,10 +191,9 @@ mod tests {
             Replacement::new_simple("baz"),
         ]);
 
-        let bar_capture = Regex::new("bar").unwrap().captures("bar").unwrap();
-        let selected = replacement.apply(&bar_capture, false);
+        let selected = apply(&replacement, "bar", false).into_owned();
 
-        assert!(vec!["bar".to_owned(), "baz".to_owned()].contains(&selected));
+        assert!(["bar", "baz"].contains(&selected.as_str()));
     }
 
     #[test]
@@ -187,52 +204,27 @@ mod tests {
             (0, Replacement::new_simple("spam")),
         ]);
 
-        let bar_capture = Regex::new("bar").unwrap().captures("bar").unwrap();
-        let selected = replacement.apply(&bar_capture, false);
+        let selected = apply(&replacement, "bar", false).into_owned();
 
-        assert!(vec!["bar".to_owned(), "baz".to_owned()].contains(&selected));
+        assert!(vec!["bar", "baz"].contains(&selected.as_str()));
     }
 
     #[test]
     fn uppercase() {
-        let uppercase = Replacement::new_uppercase(Replacement::new_original());
+        let replacement = Replacement::new_uppercase(Replacement::new_original());
 
-        assert_eq!(
-            uppercase.apply(&make_captions("lowercase"), false),
-            "LOWERCASE".to_owned()
-        );
-        assert_eq!(
-            uppercase.apply(&make_captions("UPPERCASE"), false),
-            "UPPERCASE".to_owned()
-        );
-        assert_eq!(
-            uppercase.apply(&make_captions("MiXeDcAsE"), false),
-            "MIXEDCASE".to_owned()
-        );
-        assert_eq!(
-            uppercase.apply(&make_captions("юникод"), false),
-            "ЮНИКОД".to_owned()
-        );
+        assert_eq!(apply(&replacement, "lowercase", false), "LOWERCASE");
+        assert_eq!(apply(&replacement, "UPPERCASE", false), "UPPERCASE");
+        assert_eq!(apply(&replacement, "MiXeDcAsE", false), "MIXEDCASE");
+        assert_eq!(apply(&replacement, "юникод", false), "ЮНИКОД");
     }
     #[test]
     fn lowercase() {
-        let lowercase = Replacement::new_lowercase(Replacement::new_original());
+        let replacement = Replacement::new_lowercase(Replacement::new_original());
 
-        assert_eq!(
-            lowercase.apply(&make_captions("lowercase"), false),
-            "lowercase".to_owned()
-        );
-        assert_eq!(
-            lowercase.apply(&make_captions("UPPERCASE"), false),
-            "uppercase".to_owned()
-        );
-        assert_eq!(
-            lowercase.apply(&make_captions("MiXeDcAsE"), false),
-            "mixedcase".to_owned()
-        );
-        assert_eq!(
-            lowercase.apply(&make_captions("ЮНИКОД"), false),
-            "юникод".to_owned()
-        );
+        assert_eq!(apply(&replacement, "lowercase", false), "lowercase");
+        assert_eq!(apply(&replacement, "UPPERCASE", false), "uppercase");
+        assert_eq!(apply(&replacement, "MiXeDcAsE", false), "mixedcase");
+        assert_eq!(apply(&replacement, "ЮНИКОД", false), "юникод");
     }
 }

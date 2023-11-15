@@ -3,6 +3,7 @@ use crate::deserialize::AccentDef;
 use crate::replacement::{Replacement, Rule};
 use crate::severity::Severity;
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use regex::Regex;
@@ -118,7 +119,7 @@ impl Accent {
     }
 
     /// Walks rules for given severity from top to bottom and applies them
-    pub fn apply(&self, text: &str, severity: u64) -> String {
+    pub fn apply<'a>(&self, text: &'a str, severity: u64) -> Cow<'a, str> {
         // TODO: binary search? probably now worth
         //
         // Go from the end and pick first severity that is less or eaual to requested. This is
@@ -132,11 +133,14 @@ impl Accent {
             .expect("severity 0 is always present")
             .1;
 
-        let mut result = text.to_owned();
+        let mut result = Cow::Borrowed(text);
 
         // apply rules from top to bottom
         for replacement in replacements {
-            result = replacement.apply(&result, self.normalize_case);
+            match replacement.apply(&result, self.normalize_case) {
+                Cow::Borrowed(_) => {}
+                Cow::Owned(new) => result = Cow::from(new),
+            }
         }
 
         result
@@ -485,16 +489,16 @@ mod tests {
                         },
                         Rule {
                             source: Regex::new(r"(?m)[0-9]").unwrap(),
-                            replacement: Replacement::new_any(vec![
-                                Replacement::new_weights(vec![(
+                            replacement: Replacement::new_any(vec![Replacement::new_weights(
+                                vec![(
                                     1,
                                     Replacement::new_any(vec![
                                         Replacement::new_simple("6"),
                                         Replacement::new_simple("9"),
                                         Replacement::new_original(),
                                     ]),
-                                )]),
-                            ]),
+                                )],
+                            )]),
                         },
                     ],
                 ),
