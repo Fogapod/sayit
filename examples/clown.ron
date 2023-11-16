@@ -5,7 +5,7 @@
             Simple(" HONK HONK!"),
         ])),
     ],
-    severities: {
+    intensities: {
         1: Extend((
             patterns: [
                 ("$", Any([

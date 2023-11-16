@@ -1,7 +1,7 @@
 #[cfg(feature = "deserialize")]
 use crate::deserialize::AccentDef;
+use crate::intensity::Intensity;
 use crate::replacement::{Replacement, Rule};
-use crate::severity::Severity;
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -14,8 +14,8 @@ use regex::Regex;
 #[cfg_attr(feature = "deserialize", serde(try_from = "AccentDef"))]
 pub struct Accent {
     normalize_case: bool,
-    // a set of rules for each severity level, sorted from lowest to highest
-    severities: Vec<(u64, Vec<Rule>)>,
+    // a set of rules for each intensity level, sorted from lowest to highest
+    intensities: Vec<(u64, Vec<Rule>)>,
 }
 
 impl Accent {
@@ -70,24 +70,24 @@ impl Accent {
         normalize_case: bool,
         mut words: Vec<(Regex, Replacement)>,
         mut patterns: Vec<(Regex, Replacement)>,
-        severities_def: BTreeMap<u64, Severity>,
+        intensities_def: BTreeMap<u64, Intensity>,
     ) -> Self {
         words = Self::dedup_rules(words, "words", true);
         patterns = Self::dedup_rules(patterns, "patterns", true);
 
-        let mut severities = Vec::with_capacity(severities_def.len());
+        let mut intensities = Vec::with_capacity(intensities_def.len());
 
-        severities.push((0, Self::merge_rules(&words, &patterns)));
+        intensities.push((0, Self::merge_rules(&words, &patterns)));
 
-        for (severity, override_or_addition) in severities_def {
+        for (intensity, override_or_addition) in intensities_def {
             let rules = match override_or_addition {
-                Severity::Replace(overrides) => {
+                Intensity::Replace(overrides) => {
                     words = Self::dedup_rules(overrides.words, "words", true);
                     patterns = Self::dedup_rules(overrides.patterns, "patterns", true);
 
                     Self::merge_rules(&words, &patterns)
                 }
-                Severity::Extend(additions) => {
+                Intensity::Extend(additions) => {
                     // no duplicates are allowed inside new definitions
                     let new_words = Self::dedup_rules(additions.words, "words", true);
                     let new_patterns = Self::dedup_rules(additions.patterns, "patterns", true);
@@ -106,33 +106,33 @@ impl Accent {
                 }
             };
 
-            severities.push((severity, rules));
+            intensities.push((intensity, rules));
         }
 
         Self {
             normalize_case,
-            severities,
+            intensities,
         }
     }
 
-    /// Returns all registered severities in ascending order. Note that there may be gaps
-    pub fn severities(&self) -> Vec<u64> {
-        self.severities.iter().map(|(k, _)| *k).collect()
+    /// Returns all registered intensities in ascending order. Note that there may be gaps
+    pub fn intensities(&self) -> Vec<u64> {
+        self.intensities.iter().map(|(k, _)| *k).collect()
     }
 
-    /// Walks rules for given severity from top to bottom and applies them
-    pub fn apply<'a>(&self, text: &'a str, severity: u64) -> Cow<'a, str> {
+    /// Walks rules for given intensity from top to bottom and applies them
+    pub fn apply<'a>(&self, text: &'a str, intensity: u64) -> Cow<'a, str> {
         // TODO: binary search? probably now worth
         //
-        // Go from the end and pick first severity that is less or eaual to requested. This is
-        // guaranteed to return something because base severity 0 is always present at the bottom
+        // Go from the end and pick first intensity that is less or eaual to requested. This is
+        // guaranteed to return something because base intensity 0 is always present at the bottom
         // and 0 <= x is true for any u64
         let rules = &self
-            .severities
+            .intensities
             .iter()
             .rev()
-            .find(|(sev, _)| *sev <= severity)
-            .expect("severity 0 is always present")
+            .find(|(current_intensity, _)| *current_intensity <= intensity)
+            .expect("intensity 0 is always present")
             .1;
 
         let mut result = Cow::Borrowed(text);
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn ron_empty() {
-        let _ = ron::from_str::<Accent>(r#"(words: [], patterns: [], severities: {})"#).unwrap();
+        let _ = ron::from_str::<Accent>(r#"(words: [], patterns: [], intensities: {})"#).unwrap();
     }
 
     #[test]
@@ -195,7 +195,7 @@ mod tests {
 (
     words: [("a", Original)],
     patterns: [("1", Original)],
-    severities: {
+    intensities: {
         1: Extend(
             (
                 words: [("b", Original)],
@@ -211,7 +211,7 @@ mod tests {
 
         let manual = Accent {
             normalize_case: true,
-            severities: vec![
+            intensities: vec![
                 (
                     0,
                     vec![
@@ -250,7 +250,7 @@ mod tests {
         };
 
         assert_eq!(parsed, manual);
-        assert_eq!(parsed.severities(), manual.severities());
+        assert_eq!(parsed.intensities(), manual.intensities());
     }
 
     #[test]
@@ -260,7 +260,7 @@ mod tests {
 (
     words: [("a", Original)],
     patterns: [("1", Original)],
-    severities: {
+    intensities: {
         1: Replace(
             (
                 words: [("b", Original)],
@@ -276,7 +276,7 @@ mod tests {
 
         let manual = Accent {
             normalize_case: true,
-            severities: vec![
+            intensities: vec![
                 (
                     0,
                     vec![
@@ -366,13 +366,13 @@ mod tests {
     }
 
     #[test]
-    fn ron_severity_starts_from_0() {
+    fn ron_intensity_starts_from_0() {
         assert!(
-            ron::from_str::<Accent>(r#"(severities: { 0: Extend(()) })"#)
+            ron::from_str::<Accent>(r#"(intensities: { 0: Extend(()) })"#)
                 .err()
                 .unwrap()
                 .to_string()
-                .contains("severity cannot be 0")
+                .contains("intensity cannot be 0")
         );
     }
 
@@ -423,7 +423,7 @@ mod tests {
             ],
         )),
     ],
-    severities: {
+    intensities: {
         1: Replace(
             (
                 words: [
@@ -456,7 +456,7 @@ mod tests {
         let parsed = ron::from_str::<Accent>(ron_string).unwrap();
         let manual = Accent {
             normalize_case: true,
-            severities: vec![
+            intensities: vec![
                 (
                     0,
                     vec![
@@ -572,8 +572,8 @@ mod tests {
 
         // TODO: either patch rand::thread_rng somehow or change interface to pass rng directly?
         // let test_string = "Hello World! test 12 23";
-        // for severity in manual.severities() {
-        //     assert_eq!(parsed.apply(test_string, severity), manual.apply(test_string, severity));
+        // for intensity in manual.intensities() {
+        //     assert_eq!(parsed.apply(test_string, intensity), manual.apply(test_string, intensity));
         //  }
     }
 
@@ -599,7 +599,7 @@ mod tests {
 
         let manual = Accent {
             normalize_case: true,
-            severities: vec![(
+            intensities: vec![(
                 0,
                 vec![
                     Rule {
@@ -618,21 +618,21 @@ mod tests {
     }
 
     #[test]
-    fn severity_selection() {
+    fn intensity_selection() {
         let accent = ron::from_str::<Accent>(
             r#"
 (
-    words: [("severity", Simple("0"))],
-    severities: {
+    words: [("intensity", Simple("0"))],
+    intensities: {
         1: Replace(
             (
-                words: [("severity", Simple("1"))],
+                words: [("intensity", Simple("1"))],
             )
 
         ),
         5: Replace(
             (
-                words: [("severity", Simple("5"))],
+                words: [("intensity", Simple("5"))],
             )
 
         ),
@@ -642,11 +642,11 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(accent.apply("severity", 0), "0");
-        assert_eq!(accent.apply("severity", 1), "1");
-        assert_eq!(accent.apply("severity", 4), "1");
-        assert_eq!(accent.apply("severity", 5), "5");
-        assert_eq!(accent.apply("severity", 9000 + 1), "5");
+        assert_eq!(accent.apply("intensity", 0), "0");
+        assert_eq!(accent.apply("intensity", 1), "1");
+        assert_eq!(accent.apply("intensity", 4), "1");
+        assert_eq!(accent.apply("intensity", 5), "5");
+        assert_eq!(accent.apply("intensity", 9000 + 1), "5");
     }
 
     #[test]
@@ -661,8 +661,8 @@ mod tests {
                 ron::from_str::<Accent>(&fs::read_to_string(filename).expect("reading file"))
                     .unwrap();
 
-            for severity in accent.severities() {
-                let _ = accent.apply(&sample_text, severity);
+            for intensity in accent.intensities() {
+                let _ = accent.apply(&sample_text, intensity);
             }
         }
     }

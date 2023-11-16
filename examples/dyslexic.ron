@@ -13,7 +13,7 @@
             (1, Simple("$2$1")),
         ])),
     ],
-    severities: {
+    intensities: {
         1: Replace((
             words: [
                 (r"(\w+)(\s+)(\w+)", Weights([

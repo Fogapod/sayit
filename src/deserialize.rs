@@ -1,6 +1,6 @@
 use crate::accent::Accent;
 use crate::replacement::{AnyReplacement, Replacement, WeightedReplacement};
-use crate::severity::{Severity, SeverityBody};
+use crate::intensity::{Intensity, IntensityBody};
 use crate::utils::SimpleString;
 
 use regex::Regex;
@@ -109,22 +109,22 @@ impl TryFrom<String> for PatternRegex {
 
 // this exists separately and not flattened because ron does not support serde(flatten)
 #[derive(Debug, Deserialize)]
-pub(crate) struct SeverityBodyDef {
+pub(crate) struct IntensityBodyDef {
     #[serde(default)]
     words: Vec<(WordRegex, Replacement)>,
     #[serde(default)]
     patterns: Vec<(PatternRegex, Replacement)>,
 }
 
-impl From<SeverityBodyDef> for SeverityBody {
-    fn from(severity_def: SeverityBodyDef) -> Self {
+impl From<IntensityBodyDef> for IntensityBody {
+    fn from(intensity_def: IntensityBodyDef) -> Self {
         Self {
-            words: severity_def
+            words: intensity_def
                 .words
                 .into_iter()
                 .map(|(regex, replacement)| (regex.0, replacement))
                 .collect(),
-            patterns: severity_def
+            patterns: intensity_def
                 .patterns
                 .into_iter()
                 .map(|(regex, replacement)| (regex.0, replacement))
@@ -146,15 +146,15 @@ pub(crate) struct AccentDef {
     #[serde(default)]
     patterns: Vec<(PatternRegex, Replacement)>,
     #[serde(default)]
-    severities: BTreeMap<u64, Severity>,
+    intensities: BTreeMap<u64, Intensity>,
 }
 
 impl TryFrom<AccentDef> for Accent {
     type Error = &'static str;
 
     fn try_from(accent_def: AccentDef) -> Result<Self, Self::Error> {
-        if accent_def.severities.contains_key(&0) {
-            return Err("severity cannot be 0 since 0 is base one");
+        if accent_def.intensities.contains_key(&0) {
+            return Err("intensity cannot be 0 since 0 is base one");
         }
 
         Ok(Self::new(
@@ -169,7 +169,7 @@ impl TryFrom<AccentDef> for Accent {
                 .into_iter()
                 .map(|(regex, replacement)| (regex.0, replacement))
                 .collect(),
-            accent_def.severities,
+            accent_def.intensities,
         ))
     }
 }

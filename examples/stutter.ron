@@ -18,7 +18,7 @@
             ])),
         ])),
     ],
-    severities: {
+    intensities: {
         1: Replace((
             words: [
                 (r"\S+", Weights([

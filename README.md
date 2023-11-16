@@ -48,7 +48,7 @@ Full reference:
         ])),
         // `Simple` supports regex templating: https://docs.rs/regex/latest/regex/struct.Regex.html#example-9
         // this will swwap "a" and "b" "ab" -> "ba"
-        (r"(a)(?P<b_group>b)", Simple("$b_group$a"),
+        (r"(a)(?P<b_group>b)", Simple("$b_group$a")),
     ],
 
     // pairs of (regex, replacement)
@@ -68,11 +68,11 @@ Full reference:
         ("p", Uppercase(Original)),
     ],
 
-    // accent can be used with severity (non negative value). higher severities can either extend
+    // accent can be used with intensity (non negative value). higher intensities can either extend
     // lower level or completely replace it.
-    // default severity is 0. higher ones are defined here
-    severities: {
-        // extends previous severity (level 0, base one in this case), adding additional rules
+    // default intensity is 0. higher ones are defined here
+    intensities: {
+        // extends previous intensity (level 0, base one in this case), adding additional rules
         // below existingones. words and patterns keep their relative order though - words are
         // processed first
         1: Extend(
@@ -103,7 +103,7 @@ Full reference:
             ),
         ),
 
-        // replace severity 1 entirely. in this case with nothing. remove all rules on severity 2+
+        // replace intensity 1 entirely. in this case with nothing. remove all rules on intensity 2+
         2: Replace(()),
     },
 )

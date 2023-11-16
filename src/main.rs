@@ -19,21 +19,21 @@ struct Args {
     #[arg(long, group = "accent_def")]
     accent_string: Option<String>,
 
-    /// Accent severity
+    /// Accent intensity
     #[arg(short, long, default_value_t = 0)]
-    severity: u64,
+    intensity: u64,
 
     /// File to apply accent to. Reads from stdin if unset
     #[arg(short, long)]
     file: Option<PathBuf>,
 }
 
-fn apply_accent(accent: &Accent, severity: u64, line: io::Result<String>) -> Result<(), String> {
+fn apply_accent(accent: &Accent, instensity: u64, line: io::Result<String>) -> Result<(), String> {
     println!(
         "{}",
         accent.apply(
             &line.map_err(|err| format!("reading line: {err}"))?,
-            severity
+            instensity
         )
     );
 
@@ -57,11 +57,11 @@ fn main() -> Result<(), String> {
     if let Some(filename) = args.file {
         let file = File::open(filename).map_err(|err| format!("reading input file: {err}"))?;
         for line in io::BufReader::new(file).lines() {
-            apply_accent(&accent, args.severity, line)?;
+            apply_accent(&accent, args.intensity, line)?;
         }
     } else {
         for line in io::stdin().lines() {
-            apply_accent(&accent, args.severity, line)?;
+            apply_accent(&accent, args.intensity, line)?;
         }
     }
 
