@@ -31,8 +31,9 @@ pub(crate) enum Replacement {
     Uppercase(Box<Replacement>),
     // Lowercases inner replacement
     Lowercase(Box<Replacement>),
-    // TODO: see below
-    // Custom(fn taking Caps, severity and maybe other info),
+    // TODO: custom Fn or trait
+    // #[serde(skip)]
+    // Custom(Box<dyn CustomReplacement>),
 }
 
 impl Replacement {

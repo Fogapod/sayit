@@ -19,25 +19,26 @@ pub struct Accent {
 }
 
 impl Accent {
-    fn merge_rules(
-        first: Vec<(Regex, Replacement)>,
-        second: Vec<(Regex, Replacement)>,
-    ) -> Vec<Rule> {
+    fn merge_rules(first: &[(Regex, Replacement)], second: &[(Regex, Replacement)]) -> Vec<Rule> {
         first
-            .into_iter()
+            .iter()
             .chain(second)
             .map(|(regex, replacement)| Rule {
-                source: regex,
-                replacement,
+                source: regex.clone(),
+                replacement: replacement.clone(),
             })
             .collect()
     }
 
     // keeps collection order, rewrites left duplicates with right ones
+    // TODO: investigate the usefulness of defining same pattern multiple times. Since rules are
+    //       sequentional, are there situations when we might want to apply something on top of
+    //       another change? `"*": Lowercase(Original); ...; Lowercase(Original)` this might be a
+    //       hacky way to fix something in complex accents
     fn dedup_rules(
         collection: Vec<(Regex, Replacement)>,
         pretty_name: &str,
-        drop_expected: bool,
+        warn_on_duplicates: bool,
     ) -> Vec<(Regex, Replacement)> {
         let mut filtered = vec![];
         let mut seen = BTreeMap::<String, usize>::new();
@@ -45,8 +46,7 @@ impl Accent {
         let mut i = 0;
         for word in collection {
             if let Some(previous) = seen.get(word.0.as_str()) {
-                filtered[*previous] = word.clone();
-                if !drop_expected {
+                if warn_on_duplicates {
                     log::warn!(
                         "{} already present at position {} in {}",
                         word.0,
@@ -54,6 +54,8 @@ impl Accent {
                         pretty_name,
                     );
                 }
+
+                filtered[*previous] = word;
             } else {
                 seen.insert(word.0.to_string(), i);
                 filtered.push(word);
@@ -70,25 +72,25 @@ impl Accent {
         mut patterns: Vec<(Regex, Replacement)>,
         severities_def: BTreeMap<u64, Severity>,
     ) -> Self {
-        words = Self::dedup_rules(words, "words", false);
-        patterns = Self::dedup_rules(patterns, "patterns", false);
+        words = Self::dedup_rules(words, "words", true);
+        patterns = Self::dedup_rules(patterns, "patterns", true);
 
         let mut severities = Vec::with_capacity(severities_def.len());
 
-        severities.push((0, Self::merge_rules(words.clone(), patterns.clone())));
+        severities.push((0, Self::merge_rules(&words, &patterns)));
 
         for (severity, override_or_addition) in severities_def {
             let rules = match override_or_addition {
                 Severity::Replace(overrides) => {
-                    words = Self::dedup_rules(overrides.words, "words", false);
-                    patterns = Self::dedup_rules(overrides.patterns, "patterns", false);
+                    words = Self::dedup_rules(overrides.words, "words", true);
+                    patterns = Self::dedup_rules(overrides.patterns, "patterns", true);
 
-                    Self::merge_rules(words.clone(), patterns.clone())
+                    Self::merge_rules(&words, &patterns)
                 }
                 Severity::Extend(additions) => {
                     // no duplicates are allowed inside new definitions
-                    let new_words = Self::dedup_rules(additions.words, "words", false);
-                    let new_patterns = Self::dedup_rules(additions.patterns, "patterns", false);
+                    let new_words = Self::dedup_rules(additions.words, "words", true);
+                    let new_patterns = Self::dedup_rules(additions.patterns, "patterns", true);
 
                     // NOTE: we do not just add everything to the end of `replacements`. words and
                     // patterns maintain relative order where words are always first
@@ -97,10 +99,10 @@ impl Accent {
 
                     // we deduped old and new words separately, now they are merged. dedup again
                     // without warnings. new ones take priority over old while keeping position
-                    words = Self::dedup_rules(words, "words", true);
-                    patterns = Self::dedup_rules(patterns, "patterns", true);
+                    words = Self::dedup_rules(words, "words", false);
+                    patterns = Self::dedup_rules(patterns, "patterns", false);
 
-                    Self::merge_rules(words.clone(), patterns.clone())
+                    Self::merge_rules(&words, &patterns)
                 }
             };
 
