@@ -1,0 +1,70 @@
+(
+    words: [
+        // duplicate words
+        (r"\S+", Weights([
+            (9, Original),
+            (1, Simple("$0 $0")),
+        ])),
+        // duplicate either first or last character, including in duplicated words
+        (r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)", Weights([
+            (8, Original),
+            (2, Any([
+                // first
+                Simple("$first-$first$middle$last"),
+                Simple("$first-$first-$first$middle$last"),
+                // last
+                Simple("$first$middle$last-$last"),
+                Simple("$first$middle$last-$last-$last"),
+            ])),
+        ])),
+    ],
+    severities: {
+        1: Replace((
+            words: [
+                (r"\S+", Weights([
+                    (8, Original),
+                    (1, Simple("$0 $0")),
+                    (1, Simple("$0 $0 $0")),
+                ])),
+                (r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)", Weights([
+                    (8, Original),
+                    (2, Any([
+                        // first
+                        Simple("$first-$first$middle$last"),
+                        Simple("$first-$first-$first$middle$last"),
+                        Simple("$first-$first-$first-$first$middle$last"),
+                        // last
+                        Simple("$first$middle$last-$last"),
+                        Simple("$first$middle$last-$last-$last"),
+                        Simple("$first$middle$last-$last-$last-$last"),
+                    ])),
+                ])),
+            ],
+        )),
+        2: Replace((
+            words: [
+                (r"\S+", Weights([
+                    (7, Original),
+                    (1, Simple("$0 $0")),
+                    (1, Simple("$0 $0 $0")),
+                    (1, Simple("$0 $0 $0 $0")),
+                ])),
+                (r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)", Weights([
+                    (8, Original),
+                    (2, Any([
+                        // first
+                        Simple("$first-$first$middle$last"),
+                        Simple("$first-$first-$first$middle$last"),
+                        Simple("$first-$first-$first-$first$middle$last"),
+                        Simple("$first-$first-$first-$first-$first$middle$last"),
+                        // last
+                        Simple("$first$middle$last-$last"),
+                        Simple("$first$middle$last-$last-$last"),
+                        Simple("$first$middle$last-$last-$last-$last"),
+                        Simple("$first$middle$last-$last-$last-$last-$last"),
+                    ])),
+                ])),
+            ],
+        )),
+    }
+)

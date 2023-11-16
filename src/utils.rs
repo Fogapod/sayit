@@ -1,7 +1,10 @@
+use regex::Regex;
+
 /// Wrapper around string, precomputing some metadata to speed up operations
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct SimpleString {
     pub(crate) body: String,
+    pub(crate) has_template: bool,
     char_count: usize,
     is_ascii_only: bool,
     is_ascii_lowercase: bool,
@@ -10,12 +13,16 @@ pub(crate) struct SimpleString {
 
 impl SimpleString {
     pub(crate) fn new(body: &str) -> Self {
+        // https://docs.rs/regex/latest/regex/struct.Captures.html#method.expand
+        let template_regex = Regex::new(r"\$[0-9A-Za-z_]").unwrap();
+
         Self {
             body: body.to_owned(),
             char_count: body.chars().count(),
             is_ascii_only: body.is_ascii(),
             is_ascii_lowercase: body.chars().all(|c| c.is_ascii_lowercase()),
             is_ascii_uppercase: body.chars().all(|c| c.is_ascii_uppercase()),
+            has_template: template_regex.is_match(body),
         }
     }
 }
@@ -66,6 +73,14 @@ impl SimpleString {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
+    #[test]
+    fn string_detects_template() {
+        assert!(!SimpleString::new("hello").has_template);
+        assert!(SimpleString::new("$hello").has_template);
+        assert!(SimpleString::new("hello $1 world").has_template);
+    }
 
     #[test]
     fn string_counts_chars() {

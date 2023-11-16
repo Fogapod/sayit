@@ -14,7 +14,7 @@ Each rule consists of regex pattern and a replacement. When regex match occurs t
 Possible replacements are:
 
 - `Original`: Do not replace
-- `Simple`: Puts string as is
+- `Simple`: Puts string as is (supports templating)
 - `Any` (recursive): Selects random replacement with equal weights
 - `Weights` (recursive): Selects replacement based on relative weights
 - `Uppercase` (recursive): Converts inner result to uppercase
@@ -46,6 +46,9 @@ Full reference:
             Simple("Arch"),
             Simple("Gentoo"),
         ])),
+        // `Simple` supports regex templating: https://docs.rs/regex/latest/regex/struct.Regex.html#example-9
+        // this will swwap "a" and "b" "ab" -> "ba"
+        (r"(a)(?P<b_group>b)", Simple("$b_group$a"),
     ],
 
     // pairs of (regex, replacement)

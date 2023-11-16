@@ -127,7 +127,7 @@ impl Accent {
         // Go from the end and pick first severity that is less or eaual to requested. This is
         // guaranteed to return something because base severity 0 is always present at the bottom
         // and 0 <= x is true for any u64
-        let replacements = &self
+        let rules = &self
             .severities
             .iter()
             .rev()
@@ -138,8 +138,8 @@ impl Accent {
         let mut result = Cow::Borrowed(text);
 
         // apply rules from top to bottom
-        for replacement in replacements {
-            match replacement.apply(&result, self.normalize_case) {
+        for rule in rules {
+            match rule.apply(&result, self.normalize_case) {
                 Cow::Borrowed(_) => {}
                 Cow::Owned(new) => result = Cow::from(new),
             }

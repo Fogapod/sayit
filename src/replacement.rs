@@ -83,13 +83,26 @@ impl Replacement {
             Self::Original => {
                 Cow::from(&input[caps.get(0).expect("match 0 is always present").range()])
             }
-            Self::Simple(string) => Cow::from(if normalize_case {
-                string.mimic_ascii_case(
-                    &input[caps.get(0).expect("match 0 is always present").range()],
-                )
-            } else {
-                string.body.clone()
-            }),
+            Self::Simple(string) => {
+                // TODO: currently templated strings do not match original case. this might be
+                //       desired. the problem is that mimic_ascii_case relies on expensive
+                //       precomputed fields inside SimpleString which would need to be recreated
+                if string.has_template {
+                    let mut dst = String::new();
+
+                    caps.expand(&string.body, &mut dst);
+
+                    dst.into()
+                } else {
+                    Cow::from(if normalize_case {
+                        string.mimic_ascii_case(
+                            &input[caps.get(0).expect("match 0 is always present").range()],
+                        )
+                    } else {
+                        string.body.clone()
+                    })
+                }
+            }
             Self::Any(AnyReplacement(items)) => {
                 let mut rng = rand::thread_rng();
 
@@ -219,6 +232,7 @@ mod tests {
         assert_eq!(apply(&replacement, "MiXeDcAsE", false), "MIXEDCASE");
         assert_eq!(apply(&replacement, "юникод", false), "ЮНИКОД");
     }
+
     #[test]
     fn lowercase() {
         let replacement = Replacement::new_lowercase(Replacement::new_original());
@@ -227,5 +241,31 @@ mod tests {
         assert_eq!(apply(&replacement, "UPPERCASE", false), "uppercase");
         assert_eq!(apply(&replacement, "MiXeDcAsE", false), "mixedcase");
         assert_eq!(apply(&replacement, "ЮНИКОД", false), "юникод");
+    }
+
+    #[test]
+    fn expansion() {
+        let two_words_regex = Regex::new(r"(\w+) (\w+)").unwrap();
+
+        let swap_words_replacement = Replacement::new_simple("$2 $1");
+        assert_eq!(
+            swap_words_replacement.apply(
+                &two_words_regex.captures("swap us").unwrap(),
+                "swap us",
+                false
+            ),
+            "us swap"
+        );
+
+        // nonexistent goup results in empty string
+        let delete_word_replacement = Replacement::new_simple("$nonexistent $2");
+        assert_eq!(
+            delete_word_replacement.apply(
+                &two_words_regex.captures("DELETE US").unwrap(),
+                "DELETE US",
+                false
+            ),
+            " US"
+        );
     }
 }

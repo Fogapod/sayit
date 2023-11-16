@@ -23,6 +23,9 @@
             Simple("Arch"),
             Simple("Gentoo"),
         ])),
+        // `Simple` supports regex templating: https://docs.rs/regex/latest/regex/struct.Regex.html#example-9
+        // this will swwap "a" and "b" "ab" -> "ba"
+        (r"(a)(?P<b_group>b)", Simple("$b_group$a"),
     ],
 
     // pairs of (regex, replacement)
