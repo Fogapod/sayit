@@ -1,6 +1,6 @@
 use crate::accent::Accent;
-use crate::replacement::{AnyReplacement, Replacement, WeightedReplacement};
 use crate::intensity::{Intensity, IntensityBody};
+use crate::replacement::{AnyReplacement, Replacement, WeightedReplacement};
 use crate::utils::SimpleString;
 
 use regex::Regex;

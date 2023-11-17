@@ -1,8 +1,8 @@
 mod accent;
 #[cfg(feature = "deserialize")]
 mod deserialize;
-mod replacement;
 mod intensity;
+mod replacement;
 mod utils;
 
 pub use accent::Accent;

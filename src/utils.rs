@@ -74,7 +74,6 @@ impl SimpleString {
 mod tests {
     use super::*;
 
-
     #[test]
     fn string_detects_template() {
         assert!(!SimpleString::new("hello").has_template);
