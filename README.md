@@ -11,14 +11,14 @@ Currently unusable on it's own because you cannot construct `Accent` using inter
 Accent is a sequence of rules which are applied in order.
 Each rule consists of regex pattern and a replacement. When regex match occurs the replacement is called. It then decides what to put instead (if anything).
 
-Possible replacements are:
+Supported replacements (`...` indicates recursion):
 
 - `Original`: Do not replace
-- `Simple`: Puts string as is (supports templating)
-- `Any` (recursive): Selects random replacement with equal weights
-- `Weights` (recursive): Selects replacement based on relative weights
-- `Uppercase` (recursive): Converts inner result to uppercase
-- `Lowercase` (recursive): Converts inner result to lowercase
+- `Simple("text")`: Puts string as is (supports templating)
+- `Any([..., ])`: Selects random replacement with equal weights
+- `Weights([(weight, ...), ])`: Selects replacement based on relative weights
+- `Uppercase(...)`: Converts inner result to uppercase
+- `Lowercase(...)`: Converts inner result to lowercase
 
 ## Serialized format
 
