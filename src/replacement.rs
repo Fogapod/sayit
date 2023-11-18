@@ -88,12 +88,12 @@ impl Replacement {
         //        https://github.com/rust-lang/regex/discussions/775
         let mut replaced = match self.0.as_ref() {
             InnerReplacement::Original => {
-                Cow::from(&input[caps.get(0).expect("match 0 is always present").range()])
+                (&input[caps.get(0).expect("match 0 is always present").range()]).into()
             }
             InnerReplacement::Simple(string) => {
                 template = template.or(Some(string.has_template));
 
-                Cow::from(if mimic_case.unwrap_or(true) {
+                if mimic_case.unwrap_or(true) {
                     // prevent more expensive mimic_case from running after us
                     mimic_case = Some(false);
 
@@ -102,7 +102,8 @@ impl Replacement {
                     )
                 } else {
                     string.body.clone()
-                })
+                }
+                .into()
             }
             InnerReplacement::Any(AnyReplacement(items)) => {
                 let mut rng = rand::thread_rng();
@@ -121,26 +122,24 @@ impl Replacement {
                     .1
                     .apply(caps, input, mimic_case, template)
             }
-            InnerReplacement::Upper(inner) => Cow::from(
-                inner
-                    .apply(caps, input, Some(false), template)
-                    .to_uppercase(),
-            ),
-            InnerReplacement::Lower(inner) => Cow::from(
-                inner
-                    .apply(caps, input, Some(false), template)
-                    .to_lowercase(),
-            ),
+            InnerReplacement::Upper(inner) => inner
+                .apply(caps, input, Some(false), template)
+                .to_uppercase()
+                .into(),
+            InnerReplacement::Lower(inner) => inner
+                .apply(caps, input, Some(false), template)
+                .to_lowercase()
+                .into(),
             InnerReplacement::Template(inner) => inner.apply(caps, input, mimic_case, Some(true)),
             InnerReplacement::NoTemplate(inner) => {
                 inner.apply(caps, input, mimic_case, Some(false))
             }
             InnerReplacement::MimicCase(inner) => inner.apply(caps, input, Some(true), template),
             InnerReplacement::NoMimicCase(inner) => inner.apply(caps, input, Some(false), template),
-            InnerReplacement::Concat(left, right) => Cow::from(
-                left.apply(caps, input, mimic_case, template)
-                    + right.apply(caps, input, mimic_case, template),
-            ),
+            InnerReplacement::Concat(left, right) => (left
+                .apply(caps, input, mimic_case, template)
+                + right.apply(caps, input, mimic_case, template))
+            .into(),
         };
 
         if template.unwrap_or(false) {
@@ -228,12 +227,14 @@ mod tests {
     }
 
     fn apply<'a>(replacement: &Replacement, self_matching_pattern: &'a str) -> Cow<'a, str> {
-        Cow::from(replacement.apply(
-            &make_captions(self_matching_pattern),
-            self_matching_pattern,
-            None,
-            None,
-        ))
+        replacement
+            .apply(
+                &make_captions(self_matching_pattern),
+                self_matching_pattern,
+                None,
+                None,
+            )
+            .into()
     }
 
     #[test]
