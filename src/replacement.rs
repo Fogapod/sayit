@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::utils::SimpleString;
 
 use rand::seq::SliceRandom;
-use regex::{Captures, Regex};
+use regex::Captures;
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct AnyReplacement(pub(crate) Vec<Replacement>);
@@ -13,146 +13,203 @@ pub(crate) struct WeightedReplacement(pub(crate) Vec<(u64, Replacement)>);
 
 /// Receives match and provides replacement
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-pub(crate) enum Replacement {
-    /// Do not replace
-    Original,
-    // TODO: either a separate variant or modify Simple to allow formatting using capture groups:
-    //       "hello {1}" would insert group 1
-    // TODO: implement a bit of serde magic for easier parsing: string would turn into `Simple`,
-    //       array into `Any` and map with u64 keys into `Weights`
-    /// Puts string as is
-    Simple(SimpleString),
-    /// Selects random replacement with equal weights
-    Any(AnyReplacement),
-    /// Selects replacement based on relative weights
-    Weights(WeightedReplacement),
-    // Uppercases inner replacement
-    Uppercase(Box<Replacement>),
-    // Lowercases inner replacement
-    Lowercase(Box<Replacement>),
-    // TODO: custom Fn or trait
-    // #[serde(skip)]
-    // Custom(Box<dyn CustomReplacement>),
-}
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(transparent)
+)]
+pub struct Replacement(Box<InnerReplacement>);
 
 impl Replacement {
-    // FIXME: i dont know why these are marked as dead code, these are used in tests a lot. these
-    //        should be made public eventually to allow programmatic accent construction like in
-    //        tests
-    #[allow(dead_code)]
     /// Construct new Original variant
-    pub(crate) fn new_original() -> Self {
-        Self::Original
+    pub fn new_original() -> Self {
+        InnerReplacement::Original.into()
     }
 
-    #[allow(dead_code)]
     /// Construct new Simple variant
-    pub(crate) fn new_simple(s: &str) -> Self {
-        Self::Simple(SimpleString::new(s))
+    pub fn new_simple(s: &str) -> Self {
+        InnerReplacement::Simple(SimpleString::from(s)).into()
     }
 
-    #[allow(dead_code)]
     /// Construct new Any variant
-    pub(crate) fn new_any(items: Vec<Replacement>) -> Self {
-        Self::Any(AnyReplacement(items))
+    pub fn new_any(items: Vec<Replacement>) -> Self {
+        InnerReplacement::Any(AnyReplacement(items)).into()
     }
 
-    #[allow(dead_code)]
     /// Construct new Weights variant
-    pub(crate) fn new_weights(items: Vec<(u64, Replacement)>) -> Self {
-        Self::Weights(WeightedReplacement(items))
+    pub fn new_weights(items: Vec<(u64, Replacement)>) -> Self {
+        InnerReplacement::Weights(WeightedReplacement(items)).into()
     }
 
-    #[allow(dead_code)]
-    /// Construct new Uppercase variant
-    pub(crate) fn new_uppercase(inner: Replacement) -> Self {
-        Self::Uppercase(Box::new(inner))
+    /// Construct new Upper variant
+    pub fn new_upper(inner: Replacement) -> Self {
+        InnerReplacement::Upper(Box::new(inner)).into()
     }
 
-    #[allow(dead_code)]
-    /// Construct new Lowercase variant
-    pub(crate) fn new_lowercase(inner: Replacement) -> Self {
-        Self::Lowercase(Box::new(inner))
+    /// Construct new Lower variant
+    pub fn new_lower(inner: Replacement) -> Self {
+        InnerReplacement::Lower(Box::new(inner)).into()
     }
 
-    fn apply<'a>(&self, caps: &Captures, input: &'a str, normalize_case: bool) -> Cow<'a, str> {
+    /// Construct new Template variant
+    pub fn new_template(inner: Replacement) -> Self {
+        InnerReplacement::Template(Box::new(inner)).into()
+    }
+
+    /// Construct new NoTemplate variant
+    pub fn new_no_template(inner: Replacement) -> Self {
+        InnerReplacement::NoTemplate(Box::new(inner)).into()
+    }
+
+    /// Construct new MimicCase variant
+    pub fn new_mimic_case(inner: Replacement) -> Self {
+        InnerReplacement::MimicCase(Box::new(inner)).into()
+    }
+
+    /// Construct new NoMimicCase variant
+    pub fn new_no_mimic_case(inner: Replacement) -> Self {
+        InnerReplacement::NoMimicCase(Box::new(inner)).into()
+    }
+
+    /// Construct new Concat variant
+    pub fn new_concat(left: Replacement, right: Replacement) -> Self {
+        InnerReplacement::Concat(Box::new(left), Box::new(right)).into()
+    }
+
+    /// Applies replacement to given text. This is a mini version of Accent
+    pub fn apply<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        mut mimic_case: Option<bool>,
+        mut template: Option<bool>,
+    ) -> Cow<'a, str> {
         // FIXME: use caps directly instead of indexing input. this is a bug of regex lifetimes:
         //        https://github.com/rust-lang/regex/discussions/775
-        match self {
-            Self::Original => {
+        let mut replaced = match self.0.as_ref() {
+            InnerReplacement::Original => {
                 Cow::from(&input[caps.get(0).expect("match 0 is always present").range()])
             }
-            Self::Simple(string) => {
-                // TODO: currently templated strings do not match original case. this might be
-                //       desired. the problem is that mimic_ascii_case relies on expensive
-                //       precomputed fields inside SimpleString which would need to be recreated
-                if string.has_template {
-                    let mut dst = String::new();
+            InnerReplacement::Simple(string) => {
+                template = template.or(Some(string.has_template));
 
-                    caps.expand(&string.body, &mut dst);
+                Cow::from(if mimic_case.unwrap_or(true) {
+                    // prevent more expensive mimic_case from running after us
+                    mimic_case = Some(false);
 
-                    dst.into()
+                    string.mimic_ascii_case(
+                        &input[caps.get(0).expect("match 0 is always present").range()],
+                    )
                 } else {
-                    Cow::from(if normalize_case {
-                        string.mimic_ascii_case(
-                            &input[caps.get(0).expect("match 0 is always present").range()],
-                        )
-                    } else {
-                        string.body.clone()
-                    })
-                }
+                    string.body.clone()
+                })
             }
-            Self::Any(AnyReplacement(items)) => {
+            InnerReplacement::Any(AnyReplacement(items)) => {
                 let mut rng = rand::thread_rng();
 
                 items
                     .choose(&mut rng)
                     .expect("empty Any")
-                    .apply(caps, input, normalize_case)
+                    .apply(caps, input, mimic_case, template)
             }
-            Self::Weights(WeightedReplacement(items)) => {
+            InnerReplacement::Weights(WeightedReplacement(items)) => {
                 let mut rng = rand::thread_rng();
 
                 items
                     .choose_weighted(&mut rng, |item| item.0)
                     .expect("empty Weights")
                     .1
-                    .apply(caps, input, normalize_case)
+                    .apply(caps, input, mimic_case, template)
             }
-            Replacement::Uppercase(inner) => {
-                Cow::Owned(inner.apply(caps, input, false).to_uppercase())
+            InnerReplacement::Upper(inner) => Cow::from(
+                inner
+                    .apply(caps, input, Some(false), template)
+                    .to_uppercase(),
+            ),
+            InnerReplacement::Lower(inner) => Cow::from(
+                inner
+                    .apply(caps, input, Some(false), template)
+                    .to_lowercase(),
+            ),
+            InnerReplacement::Template(inner) => inner.apply(caps, input, mimic_case, Some(true)),
+            InnerReplacement::NoTemplate(inner) => {
+                inner.apply(caps, input, mimic_case, Some(false))
             }
-            Replacement::Lowercase(inner) => {
-                Cow::Owned(inner.apply(caps, input, false).to_lowercase())
-            }
+            InnerReplacement::MimicCase(inner) => inner.apply(caps, input, Some(true), template),
+            InnerReplacement::NoMimicCase(inner) => inner.apply(caps, input, Some(false), template),
+            InnerReplacement::Concat(left, right) => Cow::from(
+                left.apply(caps, input, mimic_case, template)
+                    + right.apply(caps, input, mimic_case, template),
+            ),
+        };
+
+        if template.unwrap_or(false) {
+            let mut dst = String::new();
+            caps.expand(&replaced, &mut dst);
+            replaced = dst.into();
         }
+
+        if mimic_case.unwrap_or(false) {
+            // FIXME: initializing SimpleString is super expensive!!!!
+            let s = SimpleString::from(replaced.as_ref());
+            replaced = s.mimic_ascii_case(input).into();
+        }
+
+        replaced
     }
 }
 
-/// Maps regex to replacement
-#[derive(Debug)]
-pub(crate) struct Rule {
-    pub(crate) source: Regex,
-    pub(crate) replacement: Replacement,
-}
-
-impl Rule {
-    pub(crate) fn apply<'input>(
-        &self,
-        text: &'input str,
-        normalize_case: bool,
-    ) -> Cow<'input, str> {
-        self.source.replace_all(text, |caps: &Captures| {
-            self.replacement.apply(caps, text, normalize_case)
-        })
+impl From<InnerReplacement> for Replacement {
+    fn from(inner: InnerReplacement) -> Self {
+        Self(Box::new(inner))
     }
 }
 
-impl PartialEq for Rule {
-    fn eq(&self, other: &Self) -> bool {
-        self.source.as_str() == other.source.as_str() && self.replacement == other.replacement
-    }
+// This is private because it leaks internal types. Internal types are needed because current
+// deserialization is extremely janky. If those are ever removed, it could be exposed directly
+//
+// TODO: implement a bit of serde magic for easier parsing: string would turn into `Simple`, array
+//       into `Any` and map with u64 keys into `Weights`
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+pub(crate) enum InnerReplacement {
+    /// Do not replace
+    Original,
+
+    /// Puts string as is
+    Simple(SimpleString),
+
+    /// Selects random replacement with equal weights
+    Any(AnyReplacement),
+
+    // TODO: implement a bit of serde magic for easier parsing: string would turn into `Simple`,
+    //       array into `Any` and map with u64 keys into `Weights`
+    /// Selects replacement based on relative weights
+    Weights(WeightedReplacement),
+
+    /// Uppercases inner replacement
+    Upper(Box<Replacement>),
+
+    /// Lowercases inner replacement
+    Lower(Box<Replacement>),
+
+    /// Enables $ templating using regex for inner
+    Template(Box<Replacement>),
+
+    /// Disables $ templating using regex for inner
+    NoTemplate(Box<Replacement>),
+
+    /// Enables string case mimicing for inner
+    MimicCase(Box<Replacement>),
+
+    /// Disables string case mimicing for inner
+    NoMimicCase(Box<Replacement>),
+
+    /// Joins left and right parts
+    Concat(Box<Replacement>, Box<Replacement>),
+    // TODO: custom Fn or trait
+    // #[serde(skip)]
+    // Custom(Box<dyn CustomReplacement>),
 }
 
 #[cfg(test)]
@@ -170,15 +227,12 @@ mod tests {
             .unwrap()
     }
 
-    fn apply<'a>(
-        replacement: &Replacement,
-        self_matching_pattern: &'a str,
-        normalize_case: bool,
-    ) -> Cow<'a, str> {
+    fn apply<'a>(replacement: &Replacement, self_matching_pattern: &'a str) -> Cow<'a, str> {
         Cow::from(replacement.apply(
             &make_captions(self_matching_pattern),
             self_matching_pattern,
-            normalize_case,
+            None,
+            None,
         ))
     }
 
@@ -186,16 +240,48 @@ mod tests {
     fn original() {
         let replacement = Replacement::new_original();
 
-        assert_eq!(apply(&replacement, "bar", false), "bar");
-        assert_eq!(apply(&replacement, "foo", false), "foo");
+        assert_eq!(apply(&replacement, "bar"), "bar");
+        assert_eq!(apply(&replacement, "foo"), "foo");
     }
 
     #[test]
     fn simple() {
         let replacement = Replacement::new_simple("bar");
 
-        assert_eq!(apply(&replacement, "foo", false), "bar");
-        assert_eq!(apply(&replacement, "bar", false), "bar");
+        assert_eq!(apply(&replacement, "foo"), "bar");
+        assert_eq!(apply(&replacement, "bar"), "bar");
+    }
+
+    #[test]
+    fn simple_templates_by_default() {
+        let replacement = Replacement::new_simple("$0");
+
+        assert_eq!(apply(&replacement, "foo"), "foo");
+    }
+
+    #[test]
+    fn simple_mimics_case_by_default() {
+        let replacement = Replacement::new_simple("bar");
+
+        assert_eq!(apply(&replacement, "FOO"), "BAR");
+    }
+
+    #[test]
+    fn constructed_not_templates_by_default() {
+        let replacement =
+            Replacement::new_concat(Replacement::new_simple("$"), Replacement::new_simple("0"));
+
+        assert_eq!(apply(&replacement, "FOO"), "$0");
+    }
+
+    #[test]
+    fn constructed_not_mimics_by_default() {
+        let replacement = Replacement::new_concat(
+            Replacement::new_no_mimic_case(Replacement::new_simple("b")),
+            Replacement::new_no_mimic_case(Replacement::new_simple("ar")),
+        );
+
+        assert_eq!(apply(&replacement, "FOO"), "bar");
     }
 
     #[test]
@@ -205,7 +291,7 @@ mod tests {
             Replacement::new_simple("baz"),
         ]);
 
-        let selected = apply(&replacement, "bar", false).into_owned();
+        let selected = apply(&replacement, "bar").into_owned();
 
         assert!(["bar", "baz"].contains(&selected.as_str()));
     }
@@ -218,29 +304,80 @@ mod tests {
             (0, Replacement::new_simple("spam")),
         ]);
 
-        let selected = apply(&replacement, "bar", false).into_owned();
+        let selected = apply(&replacement, "bar").into_owned();
 
         assert!(vec!["bar", "baz"].contains(&selected.as_str()));
     }
 
     #[test]
     fn uppercase() {
-        let replacement = Replacement::new_uppercase(Replacement::new_original());
+        let replacement = Replacement::new_upper(Replacement::new_original());
 
-        assert_eq!(apply(&replacement, "lowercase", false), "LOWERCASE");
-        assert_eq!(apply(&replacement, "UPPERCASE", false), "UPPERCASE");
-        assert_eq!(apply(&replacement, "MiXeDcAsE", false), "MIXEDCASE");
-        assert_eq!(apply(&replacement, "юникод", false), "ЮНИКОД");
+        assert_eq!(apply(&replacement, "lowercase"), "LOWERCASE");
+        assert_eq!(apply(&replacement, "UPPERCASE"), "UPPERCASE");
+        assert_eq!(apply(&replacement, "MiXeDcAsE"), "MIXEDCASE");
+        assert_eq!(apply(&replacement, "юникод"), "ЮНИКОД");
     }
 
     #[test]
     fn lowercase() {
-        let replacement = Replacement::new_lowercase(Replacement::new_original());
+        let replacement = Replacement::new_lower(Replacement::new_original());
 
-        assert_eq!(apply(&replacement, "lowercase", false), "lowercase");
-        assert_eq!(apply(&replacement, "UPPERCASE", false), "uppercase");
-        assert_eq!(apply(&replacement, "MiXeDcAsE", false), "mixedcase");
-        assert_eq!(apply(&replacement, "ЮНИКОД", false), "юникод");
+        assert_eq!(apply(&replacement, "lowercase"), "lowercase");
+        assert_eq!(apply(&replacement, "UPPERCASE"), "uppercase");
+        assert_eq!(apply(&replacement, "MiXeDcAsE"), "mixedcase");
+        assert_eq!(apply(&replacement, "ЮНИКОД"), "юникод");
+    }
+
+    #[test]
+    fn concat() {
+        let replacement =
+            Replacement::new_concat(Replacement::new_original(), Replacement::new_original());
+
+        assert_eq!(apply(&replacement, "double"), "doubledouble");
+    }
+
+    #[test]
+    fn template() {
+        let replacement =
+            Replacement::new_no_template(Replacement::new_template(Replacement::new_simple("$0")));
+
+        assert_eq!(apply(&replacement, "template"), "template");
+
+        let replacement = Replacement::new_template(Replacement::new_concat(
+            Replacement::new_simple("$"),
+            Replacement::new_simple("0"),
+        ));
+        assert_eq!(apply(&replacement, "template"), "template");
+    }
+
+    #[test]
+    fn no_template() {
+        let replacement = Replacement::new_no_template(Replacement::new_simple("$0"));
+
+        assert_eq!(apply(&replacement, "template"), "$0");
+    }
+
+    #[test]
+    fn mimic_case() {
+        let replacement = Replacement::new_no_mimic_case(Replacement::new_mimic_case(
+            Replacement::new_simple("bar"),
+        ));
+
+        assert_eq!(apply(&replacement, "FOO"), "BAR");
+
+        let replacement = Replacement::new_mimic_case(Replacement::new_concat(
+            Replacement::new_simple("b"),
+            Replacement::new_simple("ar"),
+        ));
+        assert_eq!(apply(&replacement, "FOO"), "BAR");
+    }
+
+    #[test]
+    fn no_mimic_case() {
+        let replacement = Replacement::new_no_mimic_case(Replacement::new_simple("bar"));
+
+        assert_eq!(apply(&replacement, "FOO"), "bar");
     }
 
     #[test]
@@ -252,7 +389,8 @@ mod tests {
             swap_words_replacement.apply(
                 &two_words_regex.captures("swap us").unwrap(),
                 "swap us",
-                false
+                None,
+                None
             ),
             "us swap"
         );
@@ -263,7 +401,8 @@ mod tests {
             delete_word_replacement.apply(
                 &two_words_regex.captures("DELETE US").unwrap(),
                 "DELETE US",
-                false
+                None,
+                None
             ),
             " US"
         );

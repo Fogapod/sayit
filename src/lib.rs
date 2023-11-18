@@ -3,6 +3,8 @@ mod accent;
 mod deserialize;
 mod intensity;
 mod replacement;
+mod rule;
 mod utils;
 
 pub use accent::Accent;
+pub use replacement::Replacement;

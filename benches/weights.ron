@@ -1,6 +1,4 @@
 (
-    normalize_case: true,
-
     patterns: [
         ("a", Weights([(1, Simple("B"))])),
         ("VeryLongNonExistent12344343243244234", Weights([(10000, Original)])),

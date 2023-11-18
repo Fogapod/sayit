@@ -11,14 +11,19 @@ Currently unusable on it's own because you cannot construct `Accent` using inter
 Accent is a sequence of rules which are applied in order.
 Each rule consists of regex pattern and a replacement. When regex match occurs the replacement is called. It then decides what to put instead (if anything).
 
-Supported replacements (`...` indicates recursion):
+Supported replacements:
 
 - `Original`: Do not replace
-- `Simple("text")`: Puts string as is (supports templating)
-- `Any([..., ])`: Selects random replacement with equal weights
-- `Weights([(weight, ...), ])`: Selects replacement based on relative weights
-- `Uppercase(...)`: Converts inner result to uppercase
-- `Lowercase(...)`: Converts inner result to lowercase
+- `Simple("text")`: Puts string as is. Has templating and case mimicking by default
+- `Any([inner, ...])`: Selects random replacement with equal weights
+- `Weights([(weight, inner)], ...)`: Selects replacement based on relative weights
+- `Upper(inner)`: Converts inner result to uppercase
+- `Lower(inner)`: Converts inner result to lowercase
+- `Template(inner)`: Enables regex templating for inner types
+- `NoTemplate(inner)`: Disables regex templating for inner types
+- `MimicCase(inner)`: Enables case mimicking for inner types
+- `NoMimicCase(inner)`: Disables case mimicking for inner types
+- `Concat(left, right)`: Adds `left` and `right` together
 
 ## Serialized format
 
@@ -29,10 +34,6 @@ Full reference:
 
 ```ron
 (
-    // on by default, tries to match input case with output after each rule
-    // for example, if you replaced "HELLO" with "bye", it would use "BYE" instead
-    normalize_case: true,
-
     // pairs of (regex, replacement)
     // this is same as `patterns` except that each regex is surrounded with \b to avoid copypasting.
     // `words` are applied before `patterns`

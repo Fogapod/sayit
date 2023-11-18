@@ -1,6 +1,4 @@
 (
-    normalize_case: true,
-
     patterns: [
         ("a", Any([
             Original,

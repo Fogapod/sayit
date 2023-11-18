@@ -1,0 +1,7 @@
+(
+    patterns: [
+        ("a", Lower(Original)),
+        ("VeryLongNonExistent12344343243244234", Lower(Original)),
+        ("you", Lower(Original)),
+    ],
+)

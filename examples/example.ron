@@ -6,10 +6,6 @@
 // and end of line, regexses ignore case. you can opt out of these by doing "(?-mi)"
 // i is only added when pattern is fully composed of lowercase ascii letters
 (
-    // on by default, tries to match input case with output after each rule
-    // for example, if you replaced "HELLO" with "bye", it would use "BYE" instead
-    normalize_case: true,
-
     // pairs of (regex, replacement)
     // this is same as `patterns` except that each regex is surrounded with \b to avoid copypasting.
     // `words` are applied before `patterns`
@@ -40,9 +36,9 @@
             (01, Simple(" HONK HONK HONK HONK!!!!!!!!!!!!!!!")),
         ])),
         // lowercases all `p` letters (use "p" match from `Original`, then lowercase)
-        ("p", Lowercase(Original)),
+        ("p", Lower(Original)),
         // uppercases all `p` letters, undoing previous operation
-        ("p", Uppercase(Original)),
+        ("p", Upper(Original)),
     ],
 
     // accent can be used with intensity (non negative value). higher intensities can either extend

@@ -24,17 +24,16 @@ pub fn read_sample_file_lines() -> Vec<String> {
 fn accents(c: &mut Criterion) {
     let lines = read_sample_file_lines();
 
-    for replacement in [
-        "original",
-        "simple",
-        "any",
-        "weights",
-        "uppercase",
-        "lowercase",
-    ] {
-        let accent = read_accent(&format!("benches/{replacement}.ron"));
+    // fail early if parsing fails
+    let accents: Vec<(&str, Accent)> = [
+        "original", "simple", "any", "weights", "upper", "lower", "concat",
+    ]
+    .into_iter()
+    .map(|name| (name, read_accent(&format!("benches/{name}.ron"))))
+    .collect();
 
-        c.bench_function(&format!("accents::{replacement}"), |b| {
+    for (name, accent) in accents {
+        c.bench_function(&format!("accents::{name}"), |b| {
             b.iter(|| {
                 for line in &lines {
                     accent.apply(&line, 0);
