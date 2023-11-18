@@ -136,10 +136,10 @@ impl Replacement {
             }
             InnerReplacement::MimicCase(inner) => inner.apply(caps, input, Some(true), template),
             InnerReplacement::NoMimicCase(inner) => inner.apply(caps, input, Some(false), template),
-            InnerReplacement::Concat(left, right) => (left
-                .apply(caps, input, mimic_case, template)
-                + right.apply(caps, input, mimic_case, template))
-            .into(),
+            InnerReplacement::Concat(left, right) => {
+                left.apply(caps, input, mimic_case, template)
+                    + right.apply(caps, input, mimic_case, template)
+            }
         };
 
         if template.unwrap_or(false) {
