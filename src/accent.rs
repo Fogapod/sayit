@@ -160,11 +160,11 @@ mod tests {
             vec![
                 (
                     Regex::new(r"(?-i)[a-z]").unwrap(),
-                    Replacement::new_no_mimic_case(Replacement::new_simple("e")),
+                    Replacement::new_no_mimic_case(Replacement::new_literal("e")),
                 ),
                 (
                     Regex::new(r"(?-i)[A-Z]").unwrap(),
-                    Replacement::new_no_mimic_case(Replacement::new_simple("E")),
+                    Replacement::new_no_mimic_case(Replacement::new_literal("E")),
                 ),
             ],
             BTreeMap::new(),

@@ -3,18 +3,18 @@
         // duplicate words
         (r"\S+", Weights([
             (9, Original),
-            (1, Simple("$0 $0")),
+            (1, Literal("$0 $0")),
         ])),
         // duplicate either first or last character, including in duplicated words
         (r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)", Weights([
             (8, Original),
             (2, Any([
                 // first
-                Simple("$first-$first$middle$last"),
-                Simple("$first-$first-$first$middle$last"),
+                Literal("$first-$first$middle$last"),
+                Literal("$first-$first-$first$middle$last"),
                 // last
-                Simple("$first$middle$last-$last"),
-                Simple("$first$middle$last-$last-$last"),
+                Literal("$first$middle$last-$last"),
+                Literal("$first$middle$last-$last-$last"),
             ])),
         ])),
     ],
@@ -23,20 +23,20 @@
             words: [
                 (r"\S+", Weights([
                     (8, Original),
-                    (1, Simple("$0 $0")),
-                    (1, Simple("$0 $0 $0")),
+                    (1, Literal("$0 $0")),
+                    (1, Literal("$0 $0 $0")),
                 ])),
                 (r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)", Weights([
                     (8, Original),
                     (2, Any([
                         // first
-                        Simple("$first-$first$middle$last"),
-                        Simple("$first-$first-$first$middle$last"),
-                        Simple("$first-$first-$first-$first$middle$last"),
+                        Literal("$first-$first$middle$last"),
+                        Literal("$first-$first-$first$middle$last"),
+                        Literal("$first-$first-$first-$first$middle$last"),
                         // last
-                        Simple("$first$middle$last-$last"),
-                        Simple("$first$middle$last-$last-$last"),
-                        Simple("$first$middle$last-$last-$last-$last"),
+                        Literal("$first$middle$last-$last"),
+                        Literal("$first$middle$last-$last-$last"),
+                        Literal("$first$middle$last-$last-$last-$last"),
                     ])),
                 ])),
             ],
@@ -45,23 +45,23 @@
             words: [
                 (r"\S+", Weights([
                     (7, Original),
-                    (1, Simple("$0 $0")),
-                    (1, Simple("$0 $0 $0")),
-                    (1, Simple("$0 $0 $0 $0")),
+                    (1, Literal("$0 $0")),
+                    (1, Literal("$0 $0 $0")),
+                    (1, Literal("$0 $0 $0 $0")),
                 ])),
                 (r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)", Weights([
                     (8, Original),
                     (2, Any([
                         // first
-                        Simple("$first-$first$middle$last"),
-                        Simple("$first-$first-$first$middle$last"),
-                        Simple("$first-$first-$first-$first$middle$last"),
-                        Simple("$first-$first-$first-$first-$first$middle$last"),
+                        Literal("$first-$first$middle$last"),
+                        Literal("$first-$first-$first$middle$last"),
+                        Literal("$first-$first-$first-$first$middle$last"),
+                        Literal("$first-$first-$first-$first-$first$middle$last"),
                         // last
-                        Simple("$first$middle$last-$last"),
-                        Simple("$first$middle$last-$last-$last"),
-                        Simple("$first$middle$last-$last-$last-$last"),
-                        Simple("$first$middle$last-$last-$last-$last-$last"),
+                        Literal("$first$middle$last-$last"),
+                        Literal("$first$middle$last-$last-$last"),
+                        Literal("$first$middle$last-$last-$last-$last"),
+                        Literal("$first$middle$last-$last-$last-$last-$last"),
                     ])),
                 ])),
             ],

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::utils::SimpleString;
+use crate::utils::LiteralString;
 
 use rand::seq::SliceRandom;
 use regex::Captures;
@@ -26,9 +26,9 @@ impl Replacement {
         InnerReplacement::Original.into()
     }
 
-    /// Construct new Simple variant
-    pub fn new_simple(s: &str) -> Self {
-        InnerReplacement::Simple(SimpleString::from(s)).into()
+    /// Construct new Literal variant
+    pub fn new_literal(s: &str) -> Self {
+        InnerReplacement::Literal(LiteralString::from(s)).into()
     }
 
     /// Construct new Any variant
@@ -90,7 +90,7 @@ impl Replacement {
             InnerReplacement::Original => {
                 (&input[caps.get(0).expect("match 0 is always present").range()]).into()
             }
-            InnerReplacement::Simple(string) => {
+            InnerReplacement::Literal(string) => {
                 template = template.or(Some(string.has_template));
 
                 if mimic_case.unwrap_or(true) {
@@ -149,8 +149,8 @@ impl Replacement {
         }
 
         if mimic_case.unwrap_or(false) {
-            // FIXME: initializing SimpleString is super expensive!!!!
-            let s = SimpleString::from(replaced.as_ref());
+            // FIXME: initializing LiteralString is super expensive!!!!
+            let s = LiteralString::from(replaced.as_ref());
             replaced = s.mimic_ascii_case(input).into();
         }
 
@@ -167,7 +167,7 @@ impl From<InnerReplacement> for Replacement {
 // This is private because it leaks internal types. Internal types are needed because current
 // deserialization is extremely janky. If those are ever removed, it could be exposed directly
 //
-// TODO: implement a bit of serde magic for easier parsing: string would turn into `Simple`, array
+// TODO: implement a bit of serde magic for easier parsing: string would turn into `Literal`, array
 //       into `Any` and map with u64 keys into `Weights`
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
@@ -176,12 +176,12 @@ pub(crate) enum InnerReplacement {
     Original,
 
     /// Puts string as is
-    Simple(SimpleString),
+    Literal(LiteralString),
 
     /// Selects random replacement with equal weights
     Any(AnyReplacement),
 
-    // TODO: implement a bit of serde magic for easier parsing: string would turn into `Simple`,
+    // TODO: implement a bit of serde magic for easier parsing: string would turn into `Literal`,
     //       array into `Any` and map with u64 keys into `Weights`
     /// Selects replacement based on relative weights
     Weights(WeightedReplacement),
@@ -246,23 +246,23 @@ mod tests {
     }
 
     #[test]
-    fn simple() {
-        let replacement = Replacement::new_simple("bar");
+    fn literal() {
+        let replacement = Replacement::new_literal("bar");
 
         assert_eq!(apply(&replacement, "foo"), "bar");
         assert_eq!(apply(&replacement, "bar"), "bar");
     }
 
     #[test]
-    fn simple_templates_by_default() {
-        let replacement = Replacement::new_simple("$0");
+    fn literal_templates_by_default() {
+        let replacement = Replacement::new_literal("$0");
 
         assert_eq!(apply(&replacement, "foo"), "foo");
     }
 
     #[test]
-    fn simple_mimics_case_by_default() {
-        let replacement = Replacement::new_simple("bar");
+    fn literal_mimics_case_by_default() {
+        let replacement = Replacement::new_literal("bar");
 
         assert_eq!(apply(&replacement, "FOO"), "BAR");
     }
@@ -270,7 +270,7 @@ mod tests {
     #[test]
     fn constructed_not_templates_by_default() {
         let replacement =
-            Replacement::new_concat(Replacement::new_simple("$"), Replacement::new_simple("0"));
+            Replacement::new_concat(Replacement::new_literal("$"), Replacement::new_literal("0"));
 
         assert_eq!(apply(&replacement, "FOO"), "$0");
     }
@@ -278,8 +278,8 @@ mod tests {
     #[test]
     fn constructed_not_mimics_by_default() {
         let replacement = Replacement::new_concat(
-            Replacement::new_no_mimic_case(Replacement::new_simple("b")),
-            Replacement::new_no_mimic_case(Replacement::new_simple("ar")),
+            Replacement::new_no_mimic_case(Replacement::new_literal("b")),
+            Replacement::new_no_mimic_case(Replacement::new_literal("ar")),
         );
 
         assert_eq!(apply(&replacement, "FOO"), "bar");
@@ -288,8 +288,8 @@ mod tests {
     #[test]
     fn any() {
         let replacement = Replacement::new_any(vec![
-            Replacement::new_simple("bar"),
-            Replacement::new_simple("baz"),
+            Replacement::new_literal("bar"),
+            Replacement::new_literal("baz"),
         ]);
 
         let selected = apply(&replacement, "bar").into_owned();
@@ -300,9 +300,9 @@ mod tests {
     #[test]
     fn weights() {
         let replacement = Replacement::new_weights(vec![
-            (1, Replacement::new_simple("bar")),
-            (1, Replacement::new_simple("baz")),
-            (0, Replacement::new_simple("spam")),
+            (1, Replacement::new_literal("bar")),
+            (1, Replacement::new_literal("baz")),
+            (0, Replacement::new_literal("spam")),
         ]);
 
         let selected = apply(&replacement, "bar").into_owned();
@@ -341,20 +341,20 @@ mod tests {
     #[test]
     fn template() {
         let replacement =
-            Replacement::new_no_template(Replacement::new_template(Replacement::new_simple("$0")));
+            Replacement::new_no_template(Replacement::new_template(Replacement::new_literal("$0")));
 
         assert_eq!(apply(&replacement, "template"), "template");
 
         let replacement = Replacement::new_template(Replacement::new_concat(
-            Replacement::new_simple("$"),
-            Replacement::new_simple("0"),
+            Replacement::new_literal("$"),
+            Replacement::new_literal("0"),
         ));
         assert_eq!(apply(&replacement, "template"), "template");
     }
 
     #[test]
     fn no_template() {
-        let replacement = Replacement::new_no_template(Replacement::new_simple("$0"));
+        let replacement = Replacement::new_no_template(Replacement::new_literal("$0"));
 
         assert_eq!(apply(&replacement, "template"), "$0");
     }
@@ -362,21 +362,21 @@ mod tests {
     #[test]
     fn mimic_case() {
         let replacement = Replacement::new_no_mimic_case(Replacement::new_mimic_case(
-            Replacement::new_simple("bar"),
+            Replacement::new_literal("bar"),
         ));
 
         assert_eq!(apply(&replacement, "FOO"), "BAR");
 
         let replacement = Replacement::new_mimic_case(Replacement::new_concat(
-            Replacement::new_simple("b"),
-            Replacement::new_simple("ar"),
+            Replacement::new_literal("b"),
+            Replacement::new_literal("ar"),
         ));
         assert_eq!(apply(&replacement, "FOO"), "BAR");
     }
 
     #[test]
     fn no_mimic_case() {
-        let replacement = Replacement::new_no_mimic_case(Replacement::new_simple("bar"));
+        let replacement = Replacement::new_no_mimic_case(Replacement::new_literal("bar"));
 
         assert_eq!(apply(&replacement, "FOO"), "bar");
     }
@@ -385,7 +385,7 @@ mod tests {
     fn expansion() {
         let two_words_regex = Regex::new(r"(\w+) (\w+)").unwrap();
 
-        let swap_words_replacement = Replacement::new_simple("$2 $1");
+        let swap_words_replacement = Replacement::new_literal("$2 $1");
         assert_eq!(
             swap_words_replacement.apply(
                 &two_words_regex.captures("swap us").unwrap(),
@@ -397,7 +397,7 @@ mod tests {
         );
 
         // nonexistent goup results in empty string
-        let delete_word_replacement = Replacement::new_simple("$nonexistent $2");
+        let delete_word_replacement = Replacement::new_literal("$nonexistent $2");
         assert_eq!(
             delete_word_replacement.apply(
                 &two_words_regex.captures("DELETE US").unwrap(),

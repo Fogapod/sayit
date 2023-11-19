@@ -1,35 +1,35 @@
 (
     words: [
-        ("my", Simple("our")),
-        ("friend", Simple("comrade")),
-        ("(enemy|foe)", Simple("american pig")),
+        ("my", Literal("our")),
+        ("friend", Literal("comrade")),
+        ("(enemy|foe)", Literal("american pig")),
         ("(fuck|shit)", Any([
-            Simple("blyat"),
-            Simple("cyka"),
+            Literal("blyat"),
+            Literal("cyka"),
         ])),
-        ("usa", Simple("американские захватчики")),
-        ("we are being attacked", Simple("нас атакуют")),
+        ("usa", Literal("американские захватчики")),
+        ("we are being attacked", Literal("нас атакуют")),
     ],
     patterns: [
         (r"\b(a|the) +", Weights([
             (1, Original),
-            (1, Simple("")),
+            (1, Literal("")),
         ])),
-        (r"\bha", Simple("ga")),
+        (r"\bha", Literal("ga")),
         ("th", Any([
-            Simple("z"),
-            Simple("g"),
+            Literal("z"),
+            Literal("g"),
         ])),
         (r"\Bo?u", Any([
-            Simple("a"),
-            Simple("oo"),
+            Literal("a"),
+            Literal("oo"),
         ])),
-        ("w", Simple("v")),
+        ("w", Literal("v")),
         ("$", Weights([
             (1, Original),
             (1, Any([
-                Simple("cyka"),
-                Simple("blyat"),
+                Literal("cyka"),
+                Literal("blyat"),
             ])),
         ])),
     ],
@@ -37,8 +37,8 @@
         1: Extend((
             patterns: [
                 ("$", Any([
-                    Simple("cyka"),
-                    Simple("blyat"),
+                    Literal("cyka"),
+                    Literal("blyat"),
                 ])),
             ],
         )),

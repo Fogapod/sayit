@@ -1,16 +1,16 @@
 (
     patterns: [
         ("$", Any([
-            Simple(" HONK!"),
-            Simple(" HONK HONK!"),
+            Literal(" HONK!"),
+            Literal(" HONK HONK!"),
         ])),
     ],
     intensities: {
         1: Extend((
             patterns: [
                 ("$", Any([
-                    Simple(" HONK HONK!"),
-                    Simple(" HONK HONK HONK!"),
+                    Literal(" HONK HONK!"),
+                    Literal(" HONK HONK HONK!"),
                 ])),
             ],
         )),
@@ -18,16 +18,16 @@
             patterns: [
                 (".+", Upper(Original)),
                 ("$", Any([
-                    Simple(" HONK HONK HONK!"),
-                    Simple(" HONK HONK HONK HONK!"),
+                    Literal(" HONK HONK HONK!"),
+                    Literal(" HONK HONK HONK HONK!"),
                 ])),
             ],
         )),
         3: Extend((
             patterns: [
                 ("$", Any([
-                    Simple(" HONK HONK HONK HONK!"),
-                    Simple(" HONK HONK HONK HONK HONK!!!!!!!"),
+                    Literal(" HONK HONK HONK HONK!"),
+                    Literal(" HONK HONK HONK HONK HONK!!!!!!!"),
                 ])),
             ],
         )),

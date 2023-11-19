@@ -1,14 +1,14 @@
 use crate::accent::Accent;
 use crate::intensity::{Intensity, IntensityBody};
 use crate::replacement::{AnyReplacement, Replacement, WeightedReplacement};
-use crate::utils::SimpleString;
+use crate::utils::LiteralString;
 
 use regex::Regex;
 use serde::{de, Deserialize, Deserializer};
 use std::collections::BTreeMap;
 
-impl<'de> Deserialize<'de> for SimpleString {
-    fn deserialize<D>(deserializer: D) -> Result<SimpleString, D::Error>
+impl<'de> Deserialize<'de> for LiteralString {
+    fn deserialize<D>(deserializer: D) -> Result<LiteralString, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -386,22 +386,22 @@ mod tests {
         let ron_string = r#"
 (
     words: [
-        ("test", Simple("Testing in progress; Please ignore ...")),
-        ("badword", Simple("")),
-        ("dupe", Simple("0")),
+        ("test", Literal("Testing in progress; Please ignore ...")),
+        ("badword", Literal("")),
+        ("dupe", Literal("0")),
     ],
     patterns: [
         // lowercase letters are replaced with e
-        ("[a-z]", Simple("e")),
+        ("[a-z]", Literal("e")),
         // uppercase letters are replaced with 50% uppercase "E" and 10% for each of the cursed "E"
         ("[A-Z]", Weights(
             [
-                (5, Simple("E")),
-                (1, Simple("Ē")),
-                (1, Simple("Ê")),
-                (1, Simple("Ë")),
-                (1, Simple("È")),
-                (1, Simple("É")),
+                (5, Literal("E")),
+                (1, Literal("Ē")),
+                (1, Literal("Ê")),
+                (1, Literal("Ë")),
+                (1, Literal("È")),
+                (1, Literal("É")),
             ],
         )),
         // numbers are replaced with 6 or 9 or are left untouched
@@ -412,8 +412,8 @@ mod tests {
                     [
                         (1, Any(
                             [
-                              Simple("6"),
-                              Simple("9"),
+                              Literal("6"),
+                              Literal("9"),
                               Original,
                             ],
                         )),
@@ -426,25 +426,25 @@ mod tests {
         1: Replace(
             (
                 words: [
-                    ("replaced", Simple("words")),
-                    ("dupe", Simple("1")),
-                    ("Windows", Simple("Linux")),
+                    ("replaced", Literal("words")),
+                    ("dupe", Literal("1")),
+                    ("Windows", Literal("Linux")),
                 ],
                 patterns: [
-                    ("a+", Simple("multiple A's")),
-                    ("^", Simple("start")),
+                    ("a+", Literal("multiple A's")),
+                    ("^", Literal("start")),
                 ],
             )
         ),
         2: Extend(
             (
                 words: [
-                    ("dupe", Simple("2")),
-                    ("added", Simple("words")),
+                    ("dupe", Literal("2")),
+                    ("added", Literal("words")),
                 ],
                 patterns: [
-                    ("b+", Simple("multiple B's")),
-                    ("$", Simple("end")),
+                    ("b+", Literal("multiple B's")),
+                    ("$", Literal("end")),
                 ],
             )
         ),
@@ -460,31 +460,31 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\btest\b").unwrap(),
-                            replacement: Replacement::new_simple(
+                            replacement: Replacement::new_literal(
                                 "Testing in progress; Please ignore ...",
                             ),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bbadword\b").unwrap(),
-                            replacement: Replacement::new_simple(""),
+                            replacement: Replacement::new_literal(""),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            replacement: Replacement::new_simple("0"),
+                            replacement: Replacement::new_literal("0"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)[a-z]").unwrap(),
-                            replacement: Replacement::new_simple("e"),
+                            replacement: Replacement::new_literal("e"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)[A-Z]").unwrap(),
                             replacement: Replacement::new_weights(vec![
-                                (5, Replacement::new_simple("E")),
-                                (1, Replacement::new_simple("Ē")),
-                                (1, Replacement::new_simple("Ê")),
-                                (1, Replacement::new_simple("Ë")),
-                                (1, Replacement::new_simple("È")),
-                                (1, Replacement::new_simple("É")),
+                                (5, Replacement::new_literal("E")),
+                                (1, Replacement::new_literal("Ē")),
+                                (1, Replacement::new_literal("Ê")),
+                                (1, Replacement::new_literal("Ë")),
+                                (1, Replacement::new_literal("È")),
+                                (1, Replacement::new_literal("É")),
                             ]),
                         },
                         Rule {
@@ -493,8 +493,8 @@ mod tests {
                                 vec![(
                                     1,
                                     Replacement::new_any(vec![
-                                        Replacement::new_simple("6"),
-                                        Replacement::new_simple("9"),
+                                        Replacement::new_literal("6"),
+                                        Replacement::new_literal("9"),
                                         Replacement::new_original(),
                                     ]),
                                 )],
@@ -507,23 +507,23 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            replacement: Replacement::new_simple("words"),
+                            replacement: Replacement::new_literal("words"),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            replacement: Replacement::new_simple("1"),
+                            replacement: Replacement::new_literal("1"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            replacement: Replacement::new_simple("Linux"),
+                            replacement: Replacement::new_literal("Linux"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            replacement: Replacement::new_simple("multiple A's"),
+                            replacement: Replacement::new_literal("multiple A's"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            replacement: Replacement::new_simple("start"),
+                            replacement: Replacement::new_literal("start"),
                         },
                     ],
                 ),
@@ -532,35 +532,35 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            replacement: Replacement::new_simple("words"),
+                            replacement: Replacement::new_literal("words"),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            replacement: Replacement::new_simple("2"),
+                            replacement: Replacement::new_literal("2"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            replacement: Replacement::new_simple("Linux"),
+                            replacement: Replacement::new_literal("Linux"),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\badded\b").unwrap(),
-                            replacement: Replacement::new_simple("words"),
+                            replacement: Replacement::new_literal("words"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            replacement: Replacement::new_simple("multiple A's"),
+                            replacement: Replacement::new_literal("multiple A's"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            replacement: Replacement::new_simple("start"),
+                            replacement: Replacement::new_literal("start"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)b+").unwrap(),
-                            replacement: Replacement::new_simple("multiple B's"),
+                            replacement: Replacement::new_literal("multiple B's"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)$").unwrap(),
-                            replacement: Replacement::new_simple("end"),
+                            replacement: Replacement::new_literal("end"),
                         },
                     ],
                 ),
@@ -581,14 +581,14 @@ mod tests {
             r#"
 (
     words: [
-        ("dupew", Simple("0")),
-        ("dupew", Simple("1")),
-        ("dupew", Simple("2")),
+        ("dupew", Literal("0")),
+        ("dupew", Literal("1")),
+        ("dupew", Literal("2")),
     ],
     patterns: [
-        ("dupep", Simple("0")),
-        ("dupep", Simple("1")),
-        ("dupep", Simple("2")),
+        ("dupep", Literal("0")),
+        ("dupep", Literal("1")),
+        ("dupep", Literal("2")),
     ],
 )
 "#,
@@ -601,11 +601,11 @@ mod tests {
                 vec![
                     Rule {
                         source: Regex::new(r"(?mi)\bdupew\b").unwrap(),
-                        replacement: Replacement::new_simple("2"),
+                        replacement: Replacement::new_literal("2"),
                     },
                     Rule {
                         source: Regex::new(r"(?mi)dupep").unwrap(),
-                        replacement: Replacement::new_simple("2"),
+                        replacement: Replacement::new_literal("2"),
                     },
                 ],
             )],
@@ -619,17 +619,17 @@ mod tests {
         let accent = ron::from_str::<Accent>(
             r#"
 (
-    words: [("intensity", Simple("0"))],
+    words: [("intensity", Literal("0"))],
     intensities: {
         1: Replace(
             (
-                words: [("intensity", Simple("1"))],
+                words: [("intensity", Literal("1"))],
             )
 
         ),
         5: Replace(
             (
-                words: [("intensity", Simple("5"))],
+                words: [("intensity", Literal("5"))],
             )
 
         ),

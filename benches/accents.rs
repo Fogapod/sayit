@@ -26,7 +26,7 @@ fn accents(c: &mut Criterion) {
 
     // fail early if parsing fails
     let accents: Vec<(&str, Accent)> = [
-        "original", "simple", "any", "weights", "upper", "lower", "concat",
+        "original", "literal", "any", "weights", "upper", "lower", "concat",
     ]
     .into_iter()
     .map(|name| (name, read_accent(&format!("benches/{name}.ron"))))

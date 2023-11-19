@@ -2,7 +2,7 @@ use regex::Regex;
 
 /// Wrapper around string, precomputing some metadata to speed up operations
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct SimpleString {
+pub(crate) struct LiteralString {
     pub(crate) body: String,
     pub(crate) has_template: bool,
     char_count: usize,
@@ -11,7 +11,7 @@ pub(crate) struct SimpleString {
     is_ascii_uppercase: bool,
 }
 
-impl From<&str> for SimpleString {
+impl From<&str> for LiteralString {
     fn from(body: &str) -> Self {
         // https://docs.rs/regex/latest/regex/struct.Captures.html#method.expand
         let template_regex = Regex::new(r"\$[0-9A-Za-z_]").unwrap();
@@ -27,7 +27,7 @@ impl From<&str> for SimpleString {
     }
 }
 
-impl SimpleString {
+impl LiteralString {
     /// Try to learn something about strings and adjust case accordingly. all logic is currently
     /// ascii only
     pub(crate) fn mimic_ascii_case(&self, original: &str) -> String {
@@ -76,88 +76,88 @@ mod tests {
 
     #[test]
     fn string_detects_template() {
-        assert!(!SimpleString::from("hello").has_template);
-        assert!(SimpleString::from("$hello").has_template);
-        assert!(SimpleString::from("hello $1 world").has_template);
+        assert!(!LiteralString::from("hello").has_template);
+        assert!(LiteralString::from("$hello").has_template);
+        assert!(LiteralString::from("hello $1 world").has_template);
     }
 
     #[test]
     fn string_counts_chars() {
-        assert_eq!(SimpleString::from("hello").char_count, 5);
-        assert_eq!(SimpleString::from("привет").char_count, 6);
+        assert_eq!(LiteralString::from("hello").char_count, 5);
+        assert_eq!(LiteralString::from("привет").char_count, 6);
     }
 
     #[test]
     fn string_detects_ascii_only() {
-        assert_eq!(SimpleString::from("Hello").is_ascii_only, true);
-        assert_eq!(SimpleString::from("1!@$#$").is_ascii_only, true);
-        assert_eq!(SimpleString::from("Привет").is_ascii_only, false);
+        assert_eq!(LiteralString::from("Hello").is_ascii_only, true);
+        assert_eq!(LiteralString::from("1!@$#$").is_ascii_only, true);
+        assert_eq!(LiteralString::from("Привет").is_ascii_only, false);
     }
 
     #[test]
     fn string_detects_ascii_lowercase() {
-        assert_eq!(SimpleString::from("hello").is_ascii_lowercase, true);
-        assert_eq!(SimpleString::from("Hello").is_ascii_lowercase, false);
-        assert_eq!(SimpleString::from("1!@$#$").is_ascii_lowercase, false);
-        assert_eq!(SimpleString::from("привет").is_ascii_lowercase, false);
+        assert_eq!(LiteralString::from("hello").is_ascii_lowercase, true);
+        assert_eq!(LiteralString::from("Hello").is_ascii_lowercase, false);
+        assert_eq!(LiteralString::from("1!@$#$").is_ascii_lowercase, false);
+        assert_eq!(LiteralString::from("привет").is_ascii_lowercase, false);
     }
 
     #[test]
     fn string_detects_ascii_uppercase() {
-        assert_eq!(SimpleString::from("HELLO").is_ascii_uppercase, true);
-        assert_eq!(SimpleString::from("Hello").is_ascii_uppercase, false);
-        assert_eq!(SimpleString::from("1!@$#$").is_ascii_uppercase, false);
-        assert_eq!(SimpleString::from("ПРИВЕТ").is_ascii_uppercase, false);
+        assert_eq!(LiteralString::from("HELLO").is_ascii_uppercase, true);
+        assert_eq!(LiteralString::from("Hello").is_ascii_uppercase, false);
+        assert_eq!(LiteralString::from("1!@$#$").is_ascii_uppercase, false);
+        assert_eq!(LiteralString::from("ПРИВЕТ").is_ascii_uppercase, false);
     }
 
     #[test]
     fn mimic_case_input_lowercase() {
-        assert_eq!(SimpleString::from("bye").mimic_ascii_case("hello"), "bye");
-        assert_eq!(SimpleString::from("Bye").mimic_ascii_case("hello"), "Bye");
-        assert_eq!(SimpleString::from("bYE").mimic_ascii_case("hello"), "bYE");
+        assert_eq!(LiteralString::from("bye").mimic_ascii_case("hello"), "bye");
+        assert_eq!(LiteralString::from("Bye").mimic_ascii_case("hello"), "Bye");
+        assert_eq!(LiteralString::from("bYE").mimic_ascii_case("hello"), "bYE");
     }
 
     // questionable rule, becomes overcomplicated
     // #[test]
     // fn mimic_case_input_titled() {
     //     assert_eq!(
-    //         SimpleString::new("bye").steal_ascii_case("Hello"),
+    //         LiteralString::new("bye").steal_ascii_case("Hello"),
     //         "Bye"
     //     );
     //     // has case variation -- do not touch it
     //     assert_eq!(
-    //         SimpleString::new("bYe").steal_ascii_case("Hello"),
+    //         LiteralString::new("bYe").steal_ascii_case("Hello"),
     //         "bYe"
     //     );
     //     // not ascii uppercase
     //     assert_eq!(
-    //         SimpleString::new("bye").steal_ascii_case("Привет"),
+    //         LiteralString::new("bye").steal_ascii_case("Привет"),
     //         "bye"
     //     );
     // }
 
     #[test]
     fn mimic_case_input_uppercase() {
-        assert_eq!(SimpleString::from("bye").mimic_ascii_case("HELLO"), "BYE");
+        assert_eq!(LiteralString::from("bye").mimic_ascii_case("HELLO"), "BYE");
         // has case variation -- do not touch it
-        assert_eq!(SimpleString::from("bYE").mimic_ascii_case("HELLO"), "bYE");
+        assert_eq!(LiteralString::from("bYE").mimic_ascii_case("HELLO"), "bYE");
         // not ascii uppercase
-        assert_eq!(SimpleString::from("bye").mimic_ascii_case("ПРИВЕТ"), "bye");
-        assert_eq!(SimpleString::from("пока").mimic_ascii_case("HELLO"), "пока");
+        assert_eq!(LiteralString::from("bye").mimic_ascii_case("ПРИВЕТ"), "bye");
+        assert_eq!(LiteralString::from("пока").mimic_ascii_case("HELLO"), "пока");
     }
 
     #[test]
     fn mimic_case_input_different_case() {
-        assert_eq!(SimpleString::from("bye").mimic_ascii_case("hELLO"), "bye");
+        assert_eq!(LiteralString::from("bye").mimic_ascii_case("hELLO"), "bye");
     }
 
     #[test]
     fn mimic_case_input_different_case_same_len() {
         assert_eq!(
-            SimpleString::from("byeee").mimic_ascii_case("hELLO"),
+            LiteralString::from("byeee").mimic_ascii_case("hELLO"),
             "bYEEE"
         );
-        assert_eq!(SimpleString::from("bye").mimic_ascii_case("hI!"), "bYe");
-        assert_eq!(SimpleString::from("Bye").mimic_ascii_case("hI!"), "Bye");
+        assert_eq!(LiteralString::from("bye").mimic_ascii_case("hI!"), "bYe");
+        assert_eq!(LiteralString::from("Bye").mimic_ascii_case("hI!"), "Bye");
     }
 }

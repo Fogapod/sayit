@@ -14,7 +14,7 @@ Each rule consists of regex pattern and a replacement. When regex match occurs t
 Supported replacements:
 
 - `Original`: Do not replace
-- `Simple("text")`: Puts string as is. Has templating and case mimicking by default
+- `Literal("text")`: Puts string as is. Has templating and case mimicking by default
 - `Any([inner, ...])`: Selects random replacement with equal weights
 - `Weights([(weight, inner)], ...)`: Selects replacement based on relative weights
 - `Upper(inner)`: Converts inner result to uppercase
@@ -40,16 +40,16 @@ Full reference:
     words: [
         // this is the simplest rule to replace all "windows" words (separated by regex \b)
         // occurences with "linux", case sensitive
-        ("windows", Simple("linux")),
+        ("windows", Literal("linux")),
         // this replaces word "OS" with one of replacements, with equal probability
         ("os", Any([
-            Simple("Ubuntu"),
-            Simple("Arch"),
-            Simple("Gentoo"),
+            Literal("Ubuntu"),
+            Literal("Arch"),
+            Literal("Gentoo"),
         ])),
-        // `Simple` supports regex templating: https://docs.rs/regex/latest/regex/struct.Regex.html#example-9
+        // `Literal` supports regex templating: https://docs.rs/regex/latest/regex/struct.Regex.html#example-9
         // this will swwap "a" and "b" "ab" -> "ba"
-        (r"(a)(?P<b_group>b)", Simple("$b_group$a")),
+        (r"(a)(?P<b_group>b)", Literal("$b_group$a")),
     ],
 
     // pairs of (regex, replacement)
@@ -57,11 +57,11 @@ Full reference:
     patterns: [
         // inserts one of the honks. first value of `Weights` is relative weight. higher is better
         ("$", Weights([
-            (32, Simple(" HONK!")),
-            (16, Simple(" HONK HONK!")),
-            (08, Simple(" HONK HONK HONK!")),
+            (32, Literal(" HONK!")),
+            (16, Literal(" HONK HONK!")),
+            (08, Literal(" HONK HONK HONK!")),
             // ultra rare sigma honk - 1 / 56
-            (01, Simple(" HONK HONK HONK HONK!!!!!!!!!!!!!!!")),
+            (01, Literal(" HONK HONK HONK HONK!!!!!!!!!!!!!!!")),
         ])),
         // lowercases all `p` letters (use "p" match from `Original`, then lowercase)
         ("p", Lowercase(Original)),
@@ -81,7 +81,7 @@ Full reference:
                 words: [
                     // even though we are extending, defining same rule will overwrite result.
                     // relative order of rules remain the same: "windows" will remain first
-                    ("windows", Simple("windoos")),
+                    ("windows", Literal("windoos")),
                 ],
 
                 // extend patterns, adding 1 more rule
@@ -90,12 +90,12 @@ Full reference:
                     ("[A-Z]", Weights([
                         // 50% to replace capital letter with one of the Es
                         (1, Any([
-                            Simple("E"),
-                            Simple("Ē"),
-                            Simple("Ê"),
-                            Simple("Ë"),
-                            Simple("È"),
-                            Simple("É"),
+                            Literal("E"),
+                            Literal("Ē"),
+                            Literal("Ê"),
+                            Literal("Ë"),
+                            Literal("È"),
+                            Literal("É"),
                         ])),
                         // 50% to do nothing, no replacement
                         (1, Original),

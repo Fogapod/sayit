@@ -1,12 +1,12 @@
 (
     patterns: [
-        ("w", Simple("v")),
-        ("j", Simple("y")),
-        ("bo", Simple("bjo")),
+        ("w", Literal("v")),
+        ("j", Literal("y")),
+        ("bo", Literal("bjo")),
         ("$", Weights([
             (2, Original),
-            (1, Simple(" bork!")),
-            (1, Simple(" bork, bork!")),
+            (1, Literal(" bork!")),
+            (1, Literal(" bork, bork!")),
         ])),
     ],
     intensities: {
@@ -14,24 +14,24 @@
             patterns: [
                 ("$", Weights([
                     (1, Original),
-                    (1, Simple(" bork!")),
-                    (1, Simple(" bork, bork!")),
-                    (1, Simple(" bork, bork, bork!")),
+                    (1, Literal(" bork!")),
+                    (1, Literal(" bork, bork!")),
+                    (1, Literal(" bork, bork, bork!")),
                 ])),
             ],
         )),
         2: Extend((
             patterns: [
                 ("a", Any([
-                    Simple("å"),
-                    Simple("ä"),
-                    Simple("æ"),
-                    Simple("a"),
+                    Literal("å"),
+                    Literal("ä"),
+                    Literal("æ"),
+                    Literal("a"),
                 ])),
                 ("o", Any([
-                    Simple("ö"),
-                    Simple("ø"),
-                    Simple("o"),
+                    Literal("ö"),
+                    Literal("ø"),
+                    Literal("o"),
                 ])),
             ],
         )),

@@ -1,7 +1,0 @@
-(
-    patterns: [
-        ("a", Simple("B")),
-        ("VeryLongNonExistent12344343243244234", Simple("wdwdffhskhfkshekfhKFE")),
-        ("you", Simple("normalizeme")),
-    ],
-)

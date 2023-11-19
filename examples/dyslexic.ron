@@ -3,14 +3,14 @@
         // swap 2 words
         (r"(\w+)(\s+)(\w+)", Weights([
             (9, Original),
-            (1, Simple("$3$2$1")),
+            (1, Literal("$3$2$1")),
         ])),
     ],
     patterns: [
         // swap 2 letters
         (r"([a-zA-Z])([a-zA-Z])", Weights([
             (9, Original),
-            (1, Simple("$2$1")),
+            (1, Literal("$2$1")),
         ])),
     ],
     intensities: {
@@ -18,13 +18,13 @@
             words: [
                 (r"(\w+)(\s+)(\w+)", Weights([
                     (8, Original),
-                    (2, Simple("$3$2$1")),
+                    (2, Literal("$3$2$1")),
                 ])),
             ],
             patterns: [
                 (r"([a-zA-Z])([a-zA-Z])", Weights([
                     (8, Original),
-                    (2, Simple("$2$1")),
+                    (2, Literal("$2$1")),
                 ])),
             ],
         )),
@@ -32,13 +32,13 @@
             words: [
                 (r"(\w+)(\s+)(\w+)", Weights([
                     (7, Original),
-                    (3, Simple("$3$2$1")),
+                    (3, Literal("$3$2$1")),
                 ])),
             ],
             patterns: [
                 (r"([a-zA-Z])([a-zA-Z])", Weights([
                     (7, Original),
-                    (3, Simple("$2$1")),
+                    (3, Literal("$2$1")),
                 ])),
             ],
         )),
