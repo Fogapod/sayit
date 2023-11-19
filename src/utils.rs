@@ -143,7 +143,10 @@ mod tests {
         assert_eq!(LiteralString::from("bYE").mimic_ascii_case("HELLO"), "bYE");
         // not ascii uppercase
         assert_eq!(LiteralString::from("bye").mimic_ascii_case("ПРИВЕТ"), "bye");
-        assert_eq!(LiteralString::from("пока").mimic_ascii_case("HELLO"), "пока");
+        assert_eq!(
+            LiteralString::from("пока").mimic_ascii_case("HELLO"),
+            "пока"
+        );
     }
 
     #[test]

@@ -16,7 +16,7 @@ Supported replacements:
 - `Original`: Do not replace
 - `Literal("text")`: Puts string as is. Has templating and case mimicking by default
 - `Any([inner, ...])`: Selects random replacement with equal weights
-- `Weights([(weight, inner)], ...)`: Selects replacement based on relative weights
+- `Weights([(weight, inner), ...])`: Selects replacement based on relative weights
 - `Upper(inner)`: Converts inner result to uppercase
 - `Lower(inner)`: Converts inner result to lowercase
 - `Template(inner)`: Enables regex templating for inner types
