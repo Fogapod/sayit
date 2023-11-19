@@ -38,6 +38,10 @@ cli = ["dep:clap", "deserialize", "dep:ron"]
 [profile.dev]
 opt-level = 3
 
+[profile.release]
+codeegen-units = 1
+lto = true
+
 [[bin]]
 name = "pink_accents"
 required-features = ["cli"]
