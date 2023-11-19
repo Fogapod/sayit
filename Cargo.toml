@@ -41,6 +41,7 @@ opt-level = 3
 [profile.release]
 codeegen-units = 1
 lto = true
+strip = true
 
 [[bin]]
 name = "pink_accents"
