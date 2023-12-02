@@ -8,8 +8,8 @@ use crate::replacement::Replacement;
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(from = "IntensityBodyDef"))]
 pub(crate) struct IntensityBody {
-    pub(crate) words: Vec<(Regex, Replacement)>,
-    pub(crate) patterns: Vec<(Regex, Replacement)>,
+    pub(crate) words: Vec<(Regex, Box<dyn Replacement>)>,
+    pub(crate) patterns: Vec<(Regex, Box<dyn Replacement>)>,
 }
 
 /// Either replaces everything from previous intensity using `Replace` or adds new words and

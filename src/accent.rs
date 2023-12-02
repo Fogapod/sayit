@@ -11,15 +11,21 @@ use regex::Regex;
 
 /// Replaces patterns in text according to rules
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[cfg_attr(feature = "deserialize", serde(try_from = "AccentDef"))]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(try_from = "AccentDef")
+)]
 pub struct Accent {
     // a set of rules for each intensity level, sorted from lowest to highest
     pub(crate) intensities: Vec<(u64, Vec<Rule>)>,
 }
 
 impl Accent {
-    fn merge_rules(first: &[(Regex, Replacement)], second: &[(Regex, Replacement)]) -> Vec<Rule> {
+    fn merge_rules(
+        first: &[(Regex, Box<dyn Replacement>)],
+        second: &[(Regex, Box<dyn Replacement>)],
+    ) -> Vec<Rule> {
         first
             .iter()
             .chain(second)
@@ -33,13 +39,13 @@ impl Accent {
     // keeps collection order, rewrites left duplicates with right ones
     // TODO: investigate the usefulness of defining same pattern multiple times. Since rules are
     //       sequentional, are there situations when we might want to apply something on top of
-    //       another change? `"*": Lowercase(Original); ...; Lowercase(Original)` this might be a
-    //       hacky way to fix something in complex accents
+    //       another change? `"*": Lower(Original); ...; Lower(Original)` this might be a hacky way
+    //       to fix something in complex accents
     fn dedup_rules(
-        collection: Vec<(Regex, Replacement)>,
+        collection: Vec<(Regex, Box<dyn Replacement>)>,
         pretty_name: &str,
         warn_on_duplicates: bool,
-    ) -> Vec<(Regex, Replacement)> {
+    ) -> Vec<(Regex, Box<dyn Replacement>)> {
         let mut filtered = vec![];
         let mut seen = BTreeMap::<String, usize>::new();
 
@@ -67,8 +73,8 @@ impl Accent {
     }
 
     pub(crate) fn new(
-        mut words: Vec<(Regex, Replacement)>,
-        mut patterns: Vec<(Regex, Replacement)>,
+        mut words: Vec<(Regex, Box<dyn Replacement>)>,
+        mut patterns: Vec<(Regex, Box<dyn Replacement>)>,
         intensities_def: BTreeMap<u64, Intensity>,
     ) -> Self {
         words = Self::dedup_rules(words, "words", true);
@@ -150,7 +156,7 @@ mod tests {
     use regex::Regex;
     use std::collections::BTreeMap;
 
-    use crate::replacement::Replacement;
+    use crate::replacement::{Literal, NoMimicCase};
     use crate::Accent;
 
     #[test]
@@ -160,11 +166,11 @@ mod tests {
             vec![
                 (
                     Regex::new(r"(?-i)[a-z]").unwrap(),
-                    Replacement::new_no_mimic_case(Replacement::new_literal("e")),
+                    Box::new(NoMimicCase::new(Box::new(Literal::new("e")))),
                 ),
                 (
                     Regex::new(r"(?-i)[A-Z]").unwrap(),
-                    Replacement::new_no_mimic_case(Replacement::new_literal("E")),
+                    Box::new(NoMimicCase::new(Box::new(Literal::new("E")))),
                 ),
             ],
             BTreeMap::new(),

@@ -24,7 +24,9 @@ regex = "1.10"
 log = "0.4"
 serde = { version = "1", features = ["derive"], optional = true }
 ron = { version = "0.8", optional = true }
-clap = { version = "4.4.7", optional = true, features = ["derive"] }
+clap = { version = "4.4", optional = true, features = ["derive"] }
+typetag = "0.2"
+dyn-clone = "1.0"
 
 [dev-dependencies]
 ron = { version = "0.8" }
@@ -39,7 +41,7 @@ cli = ["dep:clap", "deserialize", "dep:ron"]
 opt-level = 3
 
 [profile.release]
-codeegen-units = 1
+codegen-units = 1
 lto = true
 strip = true
 
@@ -49,4 +51,8 @@ required-features = ["cli"]
 
 [[bench]]
 name = "accents"
+harness = false
+
+[[bench]]
+name = "literal_string"
 harness = false

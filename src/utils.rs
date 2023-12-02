@@ -1,36 +1,66 @@
+use std::sync::OnceLock;
+
 use regex::Regex;
 
 /// Wrapper around string, precomputing some metadata to speed up operations
+#[doc(hidden)] // pub for bench
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct LiteralString {
+pub struct LiteralString {
     pub(crate) body: String,
+    // templating is expensive, it is important to skip it if possible
     pub(crate) has_template: bool,
+    // saves time in mimic_case
     char_count: usize,
     is_ascii_only: bool,
     is_ascii_lowercase: bool,
     is_ascii_uppercase: bool,
+    is_ascii_mixed_case: bool,
 }
+
+fn case(char_count: usize, string: &str) -> (bool, bool, bool) {
+    let (lower, upper) = string.chars().fold((0, 0), |(lower, upper), c| {
+        (
+            lower + c.is_ascii_lowercase() as usize,
+            upper + c.is_ascii_uppercase() as usize,
+        )
+    });
+
+    (
+        lower == char_count,
+        upper == char_count,
+        lower > 0 && upper > 0,
+    )
+}
+
+static TEMPLATE_REGEX: OnceLock<Regex> = OnceLock::new();
 
 impl From<&str> for LiteralString {
     fn from(body: &str) -> Self {
-        // https://docs.rs/regex/latest/regex/struct.Captures.html#method.expand
-        let template_regex = Regex::new(r"\$[0-9A-Za-z_]").unwrap();
+        let char_count = body.chars().count();
+        let is_ascii_only = body.is_ascii();
+
+        let (is_ascii_lowercase, is_ascii_uppercase, is_ascii_mixed_case) = case(char_count, body);
 
         Self {
             body: body.to_owned(),
-            char_count: body.chars().count(),
-            is_ascii_only: body.is_ascii(),
-            is_ascii_lowercase: body.chars().all(|c| c.is_ascii_lowercase()),
-            is_ascii_uppercase: body.chars().all(|c| c.is_ascii_uppercase()),
-            has_template: template_regex.is_match(body),
+            char_count,
+            is_ascii_only,
+            is_ascii_lowercase,
+            is_ascii_uppercase,
+            is_ascii_mixed_case,
+            has_template: TEMPLATE_REGEX
+                // https://docs.rs/regex/latest/regex/struct.Captures.html#method.expand
+                // this is not 100% accurate but should never result in false negatives
+                .get_or_init(|| Regex::new(r"(^|[^$])\$([0-9A-Za-z_]|\{.+?\})").unwrap())
+                .is_match(body),
         }
     }
 }
 
 impl LiteralString {
-    /// Try to learn something about strings and adjust case accordingly. all logic is currently
-    /// ascii only
-    pub(crate) fn mimic_ascii_case(&self, original: &str) -> String {
+    /// Examine given string and try to adjust to it's case. ascii only
+    #[doc(hidden)] // pub for bench
+    pub fn mimic_ascii_case(&self, source: &str) -> String {
         let mut body = self.body.clone();
 
         // assume lowercase ascii is "weakest" form. anything else returns as is
@@ -38,14 +68,14 @@ impl LiteralString {
             return body;
         }
 
-        // if original was all uppercase we force all uppercase for replacement. this is likely to
+        // if source was all uppercase we force all uppercase for replacement. this is likely to
         // give false positives on short inputs like "I" or abbreviations
-        if original.chars().all(|c| c.is_ascii_uppercase()) {
+        if source.chars().all(|c| c.is_ascii_uppercase()) {
             return body.to_ascii_uppercase();
         }
 
-        // no constraints if original was all lowercase
-        if original
+        // no constraints if source was all lowercase
+        if source
             .chars()
             .all(|c| !c.is_ascii() || c.is_ascii_lowercase())
         {
@@ -53,8 +83,8 @@ impl LiteralString {
         }
 
         // TODO: SIMD this
-        if original.chars().count() == self.char_count {
-            for (i, c_old) in original.chars().enumerate() {
+        if source.chars().count() == self.char_count {
+            for (i, c_old) in source.chars().enumerate() {
                 if c_old.is_ascii_lowercase() {
                     body.get_mut(i..i + 1)
                         .expect("strings have same len")
@@ -70,6 +100,7 @@ impl LiteralString {
         body
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,6 +110,10 @@ mod tests {
         assert!(!LiteralString::from("hello").has_template);
         assert!(LiteralString::from("$hello").has_template);
         assert!(LiteralString::from("hello $1 world").has_template);
+        assert!(!LiteralString::from("hello $$1 world").has_template);
+        assert!(!LiteralString::from("hello $$$1 world").has_template);
+        assert!(LiteralString::from("hello ${foo[bar].baz} world").has_template);
+        assert!(!LiteralString::from("hello $${foo[bar].baz} world").has_template);
     }
 
     #[test]
@@ -120,20 +155,11 @@ mod tests {
     // questionable rule, becomes overcomplicated
     // #[test]
     // fn mimic_case_input_titled() {
-    //     assert_eq!(
-    //         LiteralString::new("bye").steal_ascii_case("Hello"),
-    //         "Bye"
-    //     );
+    //     assert_eq!(LiteralString::from("bye").mimic_ascii_case("Hello"), "Bye");
     //     // has case variation -- do not touch it
-    //     assert_eq!(
-    //         LiteralString::new("bYe").steal_ascii_case("Hello"),
-    //         "bYe"
-    //     );
+    //     assert_eq!(LiteralString::from("bYe").mimic_ascii_case("Hello"), "bYe");
     //     // not ascii uppercase
-    //     assert_eq!(
-    //         LiteralString::new("bye").steal_ascii_case("Привет"),
-    //         "bye"
-    //     );
+    //     assert_eq!(LiteralString::from("bye").mimic_ascii_case("Привет"), "bye");
     // }
 
     #[test]

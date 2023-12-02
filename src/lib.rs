@@ -1,10 +1,13 @@
 mod accent;
+mod intensity;
+mod rule;
+
+// pub for bench
+#[doc(hidden)]
+pub mod utils;
+
 #[cfg(feature = "deserialize")]
 mod deserialize;
-mod intensity;
-mod replacement;
-mod rule;
-mod utils;
 
+pub mod replacement;
 pub use accent::Accent;
-pub use replacement::Replacement;

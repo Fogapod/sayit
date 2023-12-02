@@ -2,7 +2,6 @@ use criterion::criterion_main;
 use criterion::{criterion_group, Criterion};
 use pink_accents::Accent;
 use std::fs;
-use std::time::Duration;
 
 pub fn read_accent(filename: &str) -> Accent {
     let content = fs::read_to_string(filename).expect("reading accent definition");
@@ -24,16 +23,15 @@ pub fn read_sample_file_lines() -> Vec<String> {
 fn accents(c: &mut Criterion) {
     let lines = read_sample_file_lines();
 
-    // fail early if parsing fails
-    let accents: Vec<(&str, Accent)> = [
-        "original", "literal", "any", "weights", "upper", "lower", "concat",
-    ]
-    .into_iter()
-    .map(|name| (name, read_accent(&format!("benches/{name}.ron"))))
-    .collect();
+    let mut g = c.benchmark_group("accents");
+    g.sample_size(2000);
 
-    for (name, accent) in accents {
-        c.bench_function(&format!("accents::{name}"), |b| {
+    for name in [
+        "original", "literal", "any", "weights", "upper", "lower", "concat",
+    ] {
+        let accent = read_accent(&format!("benches/{name}.ron"));
+
+        g.bench_function(name, |b| {
             b.iter(|| {
                 for line in &lines {
                     accent.apply(&line, 0);
@@ -41,12 +39,8 @@ fn accents(c: &mut Criterion) {
             })
         });
     }
+    g.finish();
 }
 
-criterion_group!(
-    name=benches;
-    config=Criterion::default().measurement_time(Duration::from_secs(10));
-    targets=accents
-);
-
+criterion_group!(benches, accents);
 criterion_main!(benches);

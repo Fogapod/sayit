@@ -1,45 +1,45 @@
 (
     words: [
         // swap 2 words
-        (r"(\w+)(\s+)(\w+)", Weights([
-            (9, Original),
-            (1, Literal("$3$2$1")),
-        ])),
+        (r"(\w+)(\s+)(\w+)", {"Weights": [
+            (9, {"Original": ()}),
+            (1, {"Literal": "$3$2$1"}),
+        ]}),
     ],
     patterns: [
         // swap 2 letters
-        (r"([a-zA-Z])([a-zA-Z])", Weights([
-            (9, Original),
-            (1, Literal("$2$1")),
-        ])),
+        (r"([a-zA-Z])([a-zA-Z])", {"Weights": [
+            (9, {"Original": ()}),
+            (1, {"Literal": "$2$1"}),
+        ]}),
     ],
     intensities: {
         1: Replace((
             words: [
-                (r"(\w+)(\s+)(\w+)", Weights([
-                    (8, Original),
-                    (2, Literal("$3$2$1")),
-                ])),
+                (r"(\w+)(\s+)(\w+)", {"Weights": [
+                    (8, {"Original": ()}),
+                    (2, {"Literal": "$3$2$1"}),
+                ]}),
             ],
             patterns: [
-                (r"([a-zA-Z])([a-zA-Z])", Weights([
-                    (8, Original),
-                    (2, Literal("$2$1")),
-                ])),
+                (r"([a-zA-Z])([a-zA-Z])", {"Weights": [
+                    (8, {"Original": ()}),
+                    (2, {"Literal": "$2$1"}),
+                ]}),
             ],
         )),
         2: Replace((
             words: [
-                (r"(\w+)(\s+)(\w+)", Weights([
-                    (7, Original),
-                    (3, Literal("$3$2$1")),
-                ])),
+                (r"(\w+)(\s+)(\w+)", {"Weights": [
+                    (7, {"Original": ()}),
+                    (3, {"Literal": "$3$2$1"}),
+                ]}),
             ],
             patterns: [
-                (r"([a-zA-Z])([a-zA-Z])", Weights([
-                    (7, Original),
-                    (3, Literal("$2$1")),
-                ])),
+                (r"([a-zA-Z])([a-zA-Z])", {"Weights": [
+                    (7, {"Original": ()}),
+                    (3, {"Literal": "$2$1"}),
+                ]}),
             ],
         )),
     }

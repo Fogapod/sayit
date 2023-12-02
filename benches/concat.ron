@@ -1,7 +1,7 @@
 (
     patterns: [
-        ("a", Concat(Literal("first"), Original)),
-        ("VeryLongNonExistent12344343243244234", Concat(Original, Literal("Literal"))),
-        ("you", Concat(Literal("left"), Literal("right"))),
+        ("a", {"Concat": ({"Literal": "first"}, {"Original": ()})}),
+        ("VeryLongNonExistent12344343243244234", {"Concat": ({"Original": ()}, {"Literal": "first"})}),
+        ("you", {"Concat": ({"Literal": "left"}, {"Literal": "right"})}),
     ],
 )

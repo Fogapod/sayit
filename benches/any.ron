@@ -1,27 +1,27 @@
 (
     patterns: [
-        ("a", Any([
-            Original,
-            Literal("B"),
-            Literal("Flat"),
-        ])),
-        ("VeryLongNonExistent12344343243244234", Any([Original])),
-        ("you", Any([
-            Any([
-            Any([
-            Any([
-            Any([
-            Any([
-            Any([
-            Any([
-                Literal("nestednormalizeme"),
-            ]),
-            ]),
-            ]),
-            ]),
-            ]),
-            ]),
-            ]),
-        ])),
+        ("a", {"Any": [
+            {"Original": ()},
+            {"Literal": "B"},
+            {"Literal": "Flat"},
+        ]}),
+        ("VeryLongNonExistent12344343243244234", {"Any": [{"Original": ()}]}),
+        ("you", {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+                {"Literal": "nestednormalizeme"},
+            ]},
+            ]},
+            ]},
+            ]},
+            ]},
+            ]},
+            ]},
+        ]}),
     ],
 )

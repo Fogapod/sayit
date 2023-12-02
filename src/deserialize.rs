@@ -1,6 +1,6 @@
 use crate::accent::Accent;
 use crate::intensity::{Intensity, IntensityBody};
-use crate::replacement::{AnyReplacement, Replacement, WeightedReplacement};
+use crate::replacement::{Any, AnyError, Replacement, Weights, WeightsError};
 use crate::utils::LiteralString;
 
 use regex::Regex;
@@ -18,34 +18,32 @@ impl<'de> Deserialize<'de> for LiteralString {
     }
 }
 
-impl<'de> Deserialize<'de> for AnyReplacement {
-    fn deserialize<D>(deserializer: D) -> Result<AnyReplacement, D::Error>
+impl<'de> Deserialize<'de> for Any {
+    fn deserialize<D>(deserializer: D) -> Result<Any, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let items: Vec<Replacement> = Deserialize::deserialize(deserializer)?;
-        if items.is_empty() {
-            return Err(de::Error::invalid_length(0, &"at least one element"));
-        }
+        let items: Vec<Box<dyn Replacement>> = Deserialize::deserialize(deserializer)?;
 
-        Ok(Self(items))
+        Self::new(items).map_err(|err| match err {
+            AnyError::ZeroItems => de::Error::invalid_length(0, &"at least one element"),
+        })
     }
 }
 
-impl<'de> Deserialize<'de> for WeightedReplacement {
-    fn deserialize<D>(deserializer: D) -> Result<WeightedReplacement, D::Error>
+impl<'de> Deserialize<'de> for Weights {
+    fn deserialize<D>(deserializer: D) -> Result<Weights, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let weights: Vec<(u64, Replacement)> = Deserialize::deserialize(deserializer)?;
-        if weights.is_empty() {
-            return Err(de::Error::invalid_length(0, &"at least one element"));
-        }
-        if weights.iter().map(|(i, _)| i).sum::<u64>() == 0 {
-            return Err(de::Error::custom("weights must add up to positive number"));
-        }
+        let items: Vec<(u64, Box<dyn Replacement>)> = Deserialize::deserialize(deserializer)?;
 
-        Ok(Self(weights))
+        Self::new(items).map_err(|err| match err {
+            WeightsError::ZeroItems => de::Error::invalid_length(0, &"at least one element"),
+            WeightsError::NonPositiveTotalWeights => {
+                de::Error::custom("weights must add up to positive number")
+            }
+        })
     }
 }
 
@@ -110,13 +108,13 @@ impl TryFrom<String> for PatternRegex {
 }
 
 // this exists separately and not flattened because ron does not support serde(flatten)
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct IntensityBodyDef {
     #[serde(default)]
-    words: Vec<(WordRegex, Replacement)>,
+    words: Vec<(WordRegex, Box<dyn Replacement>)>,
     #[serde(default)]
-    patterns: Vec<(PatternRegex, Replacement)>,
+    patterns: Vec<(PatternRegex, Box<dyn Replacement>)>,
 }
 
 impl From<IntensityBodyDef> for IntensityBody {
@@ -136,13 +134,13 @@ impl From<IntensityBodyDef> for IntensityBody {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct AccentDef {
     #[serde(default)]
-    words: Vec<(WordRegex, Replacement)>,
+    words: Vec<(WordRegex, Box<dyn Replacement>)>,
     #[serde(default)]
-    patterns: Vec<(PatternRegex, Replacement)>,
+    patterns: Vec<(PatternRegex, Box<dyn Replacement>)>,
     #[serde(default)]
     intensities: BTreeMap<u64, Intensity>,
 }
@@ -176,7 +174,7 @@ mod tests {
     use regex::Regex;
     use std::fs;
 
-    use crate::replacement::Replacement;
+    use crate::replacement::{Any, Literal, Original, Weights};
     use crate::rule::Rule;
     use crate::Accent;
 
@@ -195,13 +193,13 @@ mod tests {
         let parsed = ron::from_str::<Accent>(
             r#"
 (
-    words: [("a", Original)],
-    patterns: [("1", Original)],
+    words: [("a", {"Original": ()})],
+    patterns: [("1", {"Original": ()})],
     intensities: {
         1: Extend(
             (
-                words: [("b", Original)],
-                patterns: [("2", Original)],
+                words: [("b", {"Original": ()})],
+                patterns: [("2", {"Original": ()})],
             )
 
         ),
@@ -218,11 +216,11 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)1").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                     ],
                 ),
@@ -231,19 +229,19 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bb\b").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)1").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)2").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                     ],
                 ),
@@ -259,13 +257,13 @@ mod tests {
         let parsed = ron::from_str::<Accent>(
             r#"
 (
-    words: [("a", Original)],
-    patterns: [("1", Original)],
+    words: [("a", {"Original": ()})],
+    patterns: [("1", {"Original": ()})],
     intensities: {
         1: Replace(
             (
-                words: [("b", Original)],
-                patterns: [("2", Original)],
+                words: [("b", {"Original": ()})],
+                patterns: [("2", {"Original": ()})],
             )
 
         ),
@@ -282,11 +280,11 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)1").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                     ],
                 ),
@@ -295,11 +293,11 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\bb\b").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)2").unwrap(),
-                            replacement: Replacement::new_original(),
+                            replacement: Original::new_boxed(),
                         },
                     ],
                 ),
@@ -316,7 +314,7 @@ mod tests {
 (
     patterns:
         [
-            ("a", Any([]))
+            ("a", {"Any": []})
         ]
 )
 "#
@@ -334,7 +332,7 @@ mod tests {
 (
     patterns:
         [
-            ("a", Weights([]))
+            ("a", {"Weights": []))
         ]
 )
 "#
@@ -349,12 +347,10 @@ mod tests {
 (
     patterns:
         [
-            ("a", Weights(
-                [
-                    (0, Original),
-                    (0, Original),
-                ]
-            ))
+            ("a", {"Weights": [
+                    (0, {"Original": ()}),
+                    (0, {"Original": ()}),
+            ]})
         ]
 )
 "#
@@ -386,68 +382,56 @@ mod tests {
         let ron_string = r#"
 (
     words: [
-        ("test", Literal("Testing in progress; Please ignore ...")),
-        ("badword", Literal("")),
-        ("dupe", Literal("0")),
+        ("test", {"Literal": "Testing in progress; Please ignore ..."}),
+        ("badword", {"Literal": ""}),
+        ("dupe", {"Literal": "0"}),
     ],
     patterns: [
         // lowercase letters are replaced with e
-        ("[a-z]", Literal("e")),
+        ("[a-z]", {"Literal": "e"}),
         // uppercase letters are replaced with 50% uppercase "E" and 10% for each of the cursed "E"
-        ("[A-Z]", Weights(
-            [
-                (5, Literal("E")),
-                (1, Literal("Ē")),
-                (1, Literal("Ê")),
-                (1, Literal("Ë")),
-                (1, Literal("È")),
-                (1, Literal("É")),
-            ],
-        )),
+        ("[A-Z]", {"Weights": [
+            (5, {"Literal": "E"}),
+            (1, {"Literal": "Ē"}),
+            (1, {"Literal": "Ê"}),
+            (1, {"Literal": "Ë"}),
+            (1, {"Literal": "È"}),
+            (1, {"Literal": "É"}),
+        ]}),
         // numbers are replaced with 6 or 9 or are left untouched
         // excessive nesting that does nothing
-        ("[0-9]", Any(
-            [
-                Weights(
-                    [
-                        (1, Any(
-                            [
-                              Literal("6"),
-                              Literal("9"),
-                              Original,
-                            ],
-                        )),
-                    ],
-                ),
-            ],
-        )),
+        ("[0-9]", {"Any": [
+            {"Weights": [
+                (1, {"Any": [
+                      {"Literal": "6"},
+                      {"Literal": "9"},
+                      {"Original": ()},
+                ]}),
+            ]},
+        ]}),
     ],
     intensities: {
-        1: Replace(
-            (
-                words: [
-                    ("replaced", Literal("words")),
-                    ("dupe", Literal("1")),
-                    ("Windows", Literal("Linux")),
-                ],
-                patterns: [
-                    ("a+", Literal("multiple A's")),
-                    ("^", Literal("start")),
-                ],
-            )
-        ),
-        2: Extend(
-            (
-                words: [
-                    ("dupe", Literal("2")),
-                    ("added", Literal("words")),
-                ],
-                patterns: [
-                    ("b+", Literal("multiple B's")),
-                    ("$", Literal("end")),
-                ],
-            )
-        ),
+        1: Replace((
+            words: [
+                ("replaced", {"Literal": "words"}),
+                ("dupe", {"Literal": "1"}),
+                ("Windows", {"Literal": "Linux"}),
+            ],
+            patterns: [
+                ("a+", {"Literal": "multiple A's"}),
+                ("^", {"Literal": "start"}),
+            ],
+        )),
+        2: Extend((
+            words: [
+                ("dupe", {"Literal": "2"}),
+                ("added", {"Literal": "words"}),
+            ],
+            patterns: [
+                ("b+", {"Literal": "multiple B's"}),
+                ("$", {"Literal": "end"}),
+            ],
+        )),
     },
 )
 "#;
@@ -460,45 +444,47 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\btest\b").unwrap(),
-                            replacement: Replacement::new_literal(
+                            replacement: Literal::new_boxed(
                                 "Testing in progress; Please ignore ...",
                             ),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bbadword\b").unwrap(),
-                            replacement: Replacement::new_literal(""),
+                            replacement: Literal::new_boxed(""),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            replacement: Replacement::new_literal("0"),
+                            replacement: Literal::new_boxed("0"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)[a-z]").unwrap(),
-                            replacement: Replacement::new_literal("e"),
+                            replacement: Literal::new_boxed("e"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)[A-Z]").unwrap(),
-                            replacement: Replacement::new_weights(vec![
-                                (5, Replacement::new_literal("E")),
-                                (1, Replacement::new_literal("Ē")),
-                                (1, Replacement::new_literal("Ê")),
-                                (1, Replacement::new_literal("Ë")),
-                                (1, Replacement::new_literal("È")),
-                                (1, Replacement::new_literal("É")),
-                            ]),
+                            replacement: Weights::new_boxed(vec![
+                                (5, Literal::new_boxed("E")),
+                                (1, Literal::new_boxed("Ē")),
+                                (1, Literal::new_boxed("Ê")),
+                                (1, Literal::new_boxed("Ë")),
+                                (1, Literal::new_boxed("È")),
+                                (1, Literal::new_boxed("É")),
+                            ])
+                            .unwrap(),
                         },
                         Rule {
                             source: Regex::new(r"(?m)[0-9]").unwrap(),
-                            replacement: Replacement::new_any(vec![Replacement::new_weights(
-                                vec![(
-                                    1,
-                                    Replacement::new_any(vec![
-                                        Replacement::new_literal("6"),
-                                        Replacement::new_literal("9"),
-                                        Replacement::new_original(),
-                                    ]),
-                                )],
-                            )]),
+                            replacement: Any::new_boxed(vec![Weights::new_boxed(vec![(
+                                1,
+                                Any::new_boxed(vec![
+                                    Literal::new_boxed("6"),
+                                    Literal::new_boxed("9"),
+                                    Original::new_boxed(),
+                                ])
+                                .unwrap(),
+                            )])
+                            .unwrap()])
+                            .unwrap(),
                         },
                     ],
                 ),
@@ -507,23 +493,23 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            replacement: Replacement::new_literal("words"),
+                            replacement: Literal::new_boxed("words"),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            replacement: Replacement::new_literal("1"),
+                            replacement: Literal::new_boxed("1"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            replacement: Replacement::new_literal("Linux"),
+                            replacement: Literal::new_boxed("Linux"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            replacement: Replacement::new_literal("multiple A's"),
+                            replacement: Literal::new_boxed("multiple A's"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            replacement: Replacement::new_literal("start"),
+                            replacement: Literal::new_boxed("start"),
                         },
                     ],
                 ),
@@ -532,35 +518,35 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            replacement: Replacement::new_literal("words"),
+                            replacement: Literal::new_boxed("words"),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            replacement: Replacement::new_literal("2"),
+                            replacement: Literal::new_boxed("2"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            replacement: Replacement::new_literal("Linux"),
+                            replacement: Literal::new_boxed("Linux"),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\badded\b").unwrap(),
-                            replacement: Replacement::new_literal("words"),
+                            replacement: Literal::new_boxed("words"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            replacement: Replacement::new_literal("multiple A's"),
+                            replacement: Literal::new_boxed("multiple A's"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            replacement: Replacement::new_literal("start"),
+                            replacement: Literal::new_boxed("start"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)b+").unwrap(),
-                            replacement: Replacement::new_literal("multiple B's"),
+                            replacement: Literal::new_boxed("multiple B's"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)$").unwrap(),
-                            replacement: Replacement::new_literal("end"),
+                            replacement: Literal::new_boxed("end"),
                         },
                     ],
                 ),
@@ -581,14 +567,14 @@ mod tests {
             r#"
 (
     words: [
-        ("dupew", Literal("0")),
-        ("dupew", Literal("1")),
-        ("dupew", Literal("2")),
+        ("dupew", {"Literal": "0"}),
+        ("dupew", {"Literal": "1"}),
+        ("dupew", {"Literal": "2"}),
     ],
     patterns: [
-        ("dupep", Literal("0")),
-        ("dupep", Literal("1")),
-        ("dupep", Literal("2")),
+        ("dupep", {"Literal": "0"}),
+        ("dupep", {"Literal": "1"}),
+        ("dupep", {"Literal": "2"}),
     ],
 )
 "#,
@@ -601,11 +587,11 @@ mod tests {
                 vec![
                     Rule {
                         source: Regex::new(r"(?mi)\bdupew\b").unwrap(),
-                        replacement: Replacement::new_literal("2"),
+                        replacement: Literal::new_boxed("2"),
                     },
                     Rule {
                         source: Regex::new(r"(?mi)dupep").unwrap(),
-                        replacement: Replacement::new_literal("2"),
+                        replacement: Literal::new_boxed("2"),
                     },
                 ],
             )],
@@ -619,20 +605,14 @@ mod tests {
         let accent = ron::from_str::<Accent>(
             r#"
 (
-    words: [("intensity", Literal("0"))],
+    words: [("intensity", {"Literal": "0"})],
     intensities: {
-        1: Replace(
-            (
-                words: [("intensity", Literal("1"))],
-            )
-
-        ),
-        5: Replace(
-            (
-                words: [("intensity", Literal("5"))],
-            )
-
-        ),
+        1: Replace((
+            words: [("intensity", {"Literal": "1"})],
+        )),
+        5: Replace((
+            words: [("intensity", {"Literal": "5"})],
+        )),
     },
 )
 "#,
@@ -662,5 +642,36 @@ mod tests {
                 let _ = accent.apply(&sample_text, intensity);
             }
         }
+    }
+
+    #[test]
+    fn custom_replacement_works() {
+        #[derive(Clone, Debug, serde::Deserialize)]
+        pub struct Custom;
+
+        #[typetag::deserialize]
+        impl crate::replacement::Replacement for Custom {
+            fn generate<'a>(
+                &self,
+                _: &regex::Captures,
+                _: &'a str,
+                _: crate::replacement::ReplacementOptions,
+            ) -> std::borrow::Cow<'a, str> {
+                "replaced foo!".into()
+            }
+        }
+
+        let accent = ron::from_str::<Accent>(
+            r#"
+(
+    patterns: [
+        ("foo", {"Custom": ()})
+    ]
+)
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(accent.apply("foo", 0), "replaced foo!");
     }
 }

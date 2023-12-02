@@ -1,214 +1,516 @@
+use dyn_clone::clone_trait_object;
+use dyn_clone::DynClone;
 use std::borrow::Cow;
+use std::fmt::Debug;
 
 use crate::utils::LiteralString;
 
 use rand::seq::SliceRandom;
 use regex::Captures;
 
-#[derive(Debug, PartialEq, Clone)]
-pub(crate) struct AnyReplacement(pub(crate) Vec<Replacement>);
+#[derive(Clone, Default)]
+pub struct ReplacementOptions {
+    template: Option<bool>,
+    mimic_case: Option<bool>,
+}
 
-#[derive(Debug, PartialEq, Clone)]
-pub(crate) struct WeightedReplacement(pub(crate) Vec<(u64, Replacement)>);
+clone_trait_object!(Replacement);
 
 /// Receives match and provides replacement
-#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+pub trait Replacement: DynClone + Debug {
+    /// Select suitable replacement
+    fn generate<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        options: ReplacementOptions,
+    ) -> Cow<'a, str>;
+
+    /// Runs after `generate` and applies additional operations set by options
+    fn apply_options<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        mut options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        let template = options.template.take().unwrap_or(false);
+        let mimic_case = options.mimic_case.take().unwrap_or(false);
+
+        let mut transformed = self.generate(caps, input, options);
+
+        if template {
+            transformed = self.template(&transformed, caps).into()
+        }
+
+        if mimic_case {
+            transformed = self.mimic_case(&transformed, input).into();
+        }
+
+        transformed
+    }
+
+    fn template(&self, template: &str, caps: &Captures) -> String {
+        let mut dst = String::new();
+        caps.expand(template, &mut dst);
+        dst
+    }
+
+    fn mimic_case(&self, target: &str, source: &str) -> String {
+        // FIXME: initializing LiteralString is super expensive!!!!
+        let s = LiteralString::from(target);
+        s.mimic_ascii_case(source)
+    }
+}
+
+/// Shortcut for `"$0"` `Literal`. Returns entire match. Does not act as template by default unlike
+/// `Literal`
+#[derive(Clone, Debug, Default)] // i dont know why clippy DEMANDS default here. its nuts
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+pub struct Original;
+
+impl Original {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn new_boxed() -> Box<Self> {
+        Box::new(Self::new())
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for Original {
+    fn generate<'a>(&self, caps: &Captures, input: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        (&input[caps.get(0).expect("match 0 is always present").range()]).into()
+    }
+}
+
+/// Static string. Acts as template, see regex docs for syntax:
+/// `https://docs.rs/regex/latest/regex/struct.Regex.html#example-9`
+#[derive(Clone, Debug)]
 #[cfg_attr(
     feature = "deserialize",
     derive(serde::Deserialize),
     serde(transparent)
 )]
-pub struct Replacement(Box<InnerReplacement>);
+pub struct Literal(LiteralString);
 
-impl Replacement {
-    /// Construct new Original variant
-    pub fn new_original() -> Self {
-        InnerReplacement::Original.into()
+impl Literal {
+    pub fn new(s: &str) -> Self {
+        Self(LiteralString::from(s))
     }
 
-    /// Construct new Literal variant
-    pub fn new_literal(s: &str) -> Self {
-        InnerReplacement::Literal(LiteralString::from(s)).into()
+    pub fn new_boxed(s: &str) -> Box<Self> {
+        Box::new(Self::new(s))
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for Literal {
+    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        // implementation lives in `apply` entirely
+        panic!("not meant to be called directly");
     }
 
-    /// Construct new Any variant
-    pub fn new_any(items: Vec<Replacement>) -> Self {
-        InnerReplacement::Any(AnyReplacement(items)).into()
-    }
-
-    /// Construct new Weights variant
-    pub fn new_weights(items: Vec<(u64, Replacement)>) -> Self {
-        InnerReplacement::Weights(WeightedReplacement(items)).into()
-    }
-
-    /// Construct new Upper variant
-    pub fn new_upper(inner: Replacement) -> Self {
-        InnerReplacement::Upper(Box::new(inner)).into()
-    }
-
-    /// Construct new Lower variant
-    pub fn new_lower(inner: Replacement) -> Self {
-        InnerReplacement::Lower(Box::new(inner)).into()
-    }
-
-    /// Construct new Template variant
-    pub fn new_template(inner: Replacement) -> Self {
-        InnerReplacement::Template(Box::new(inner)).into()
-    }
-
-    /// Construct new NoTemplate variant
-    pub fn new_no_template(inner: Replacement) -> Self {
-        InnerReplacement::NoTemplate(Box::new(inner)).into()
-    }
-
-    /// Construct new MimicCase variant
-    pub fn new_mimic_case(inner: Replacement) -> Self {
-        InnerReplacement::MimicCase(Box::new(inner)).into()
-    }
-
-    /// Construct new NoMimicCase variant
-    pub fn new_no_mimic_case(inner: Replacement) -> Self {
-        InnerReplacement::NoMimicCase(Box::new(inner)).into()
-    }
-
-    /// Construct new Concat variant
-    pub fn new_concat(left: Replacement, right: Replacement) -> Self {
-        InnerReplacement::Concat(Box::new(left), Box::new(right)).into()
-    }
-
-    /// Applies replacement to given text. This is a mini version of Accent
-    pub fn apply<'a>(
+    fn apply_options<'a>(
         &self,
         caps: &Captures,
         input: &'a str,
-        mut mimic_case: Option<bool>,
-        mut template: Option<bool>,
+        options: ReplacementOptions,
     ) -> Cow<'a, str> {
-        // FIXME: use caps directly instead of indexing input. this is a bug of regex lifetimes:
-        //        https://github.com/rust-lang/regex/discussions/775
-        let mut replaced = match self.0.as_ref() {
-            InnerReplacement::Original => {
-                (&input[caps.get(0).expect("match 0 is always present").range()]).into()
-            }
-            InnerReplacement::Literal(string) => {
-                template = template.or(Some(string.has_template));
+        // ignore template flag if no template detected
+        let template = options.template.unwrap_or(self.0.has_template);
+        let mimic_case = options.mimic_case.unwrap_or(true);
 
-                if mimic_case.unwrap_or(true) {
-                    // prevent more expensive mimic_case from running after us
-                    mimic_case = Some(false);
-
-                    string.mimic_ascii_case(
-                        &input[caps.get(0).expect("match 0 is always present").range()],
-                    )
-                } else {
-                    string.body.clone()
-                }
-                .into()
-            }
-            InnerReplacement::Any(AnyReplacement(items)) => {
-                let mut rng = rand::thread_rng();
-
-                items
-                    .choose(&mut rng)
-                    .expect("empty Any")
-                    .apply(caps, input, mimic_case, template)
-            }
-            InnerReplacement::Weights(WeightedReplacement(items)) => {
-                let mut rng = rand::thread_rng();
-
-                items
-                    .choose_weighted(&mut rng, |item| item.0)
-                    .expect("empty Weights")
-                    .1
-                    .apply(caps, input, mimic_case, template)
-            }
-            InnerReplacement::Upper(inner) => inner
-                .apply(caps, input, Some(false), template)
-                .to_uppercase()
-                .into(),
-            InnerReplacement::Lower(inner) => inner
-                .apply(caps, input, Some(false), template)
-                .to_lowercase()
-                .into(),
-            InnerReplacement::Template(inner) => inner.apply(caps, input, mimic_case, Some(true)),
-            InnerReplacement::NoTemplate(inner) => {
-                inner.apply(caps, input, mimic_case, Some(false))
-            }
-            InnerReplacement::MimicCase(inner) => inner.apply(caps, input, Some(true), template),
-            InnerReplacement::NoMimicCase(inner) => inner.apply(caps, input, Some(false), template),
-            InnerReplacement::Concat(left, right) => {
-                left.apply(caps, input, mimic_case, template)
-                    + right.apply(caps, input, mimic_case, template)
-            }
-        };
-
-        if template.unwrap_or(false) {
-            let mut dst = String::new();
-            caps.expand(&replaced, &mut dst);
-            replaced = dst.into();
+        if !(template || mimic_case) {
+            return self.0.body.clone().into();
         }
 
-        if mimic_case.unwrap_or(false) {
-            // FIXME: initializing LiteralString is super expensive!!!!
-            let s = LiteralString::from(replaced.as_ref());
-            replaced = s.mimic_ascii_case(input).into();
+        if template && !mimic_case {
+            return self.template(&self.0.body, caps).into();
         }
 
-        replaced
+        if !template && mimic_case {
+            return self
+                .0
+                .mimic_ascii_case(&input[caps.get(0).expect("match 0 is always present").range()])
+                .into();
+        }
+
+        // expensive path because we cannot use precomputed LiteralString, new one must be created
+        // after templating
+        let templated = self.template(&self.0.body, caps);
+        self.mimic_case(&templated, input).into()
     }
 }
 
-impl From<InnerReplacement> for Replacement {
-    fn from(inner: InnerReplacement) -> Self {
-        Self(Box::new(inner))
+/// Any creation might fail
+#[derive(Debug)]
+pub enum AnyError {
+    /// Must provide at least one element
+    ZeroItems,
+}
+
+/// Selects any of nested items with equal probabilities
+#[derive(Clone, Debug)]
+pub struct Any(Vec<Box<dyn Replacement>>);
+
+impl Any {
+    pub fn new(items: Vec<Box<dyn Replacement>>) -> Result<Self, AnyError> {
+        if items.is_empty() {
+            return Err(AnyError::ZeroItems);
+        }
+
+        Ok(Self(items))
+    }
+
+    pub fn new_boxed(items: Vec<Box<dyn Replacement>>) -> Result<Box<Self>, AnyError> {
+        Ok(Box::new(Self::new(items)?))
     }
 }
 
-// This is private because it leaks internal types. Internal types are needed because current
-// deserialization is extremely janky. If those are ever removed, it could be exposed directly
-//
-// TODO: implement a bit of serde magic for easier parsing: string would turn into `Literal`, array
-//       into `Any` and map with u64 keys into `Weights`
-#[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-pub(crate) enum InnerReplacement {
-    /// Do not replace
-    Original,
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for Any {
+    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        // does not transform input so does not need to implement this
+        panic!("not meant to be called directly");
+    }
 
-    /// Puts string as is
-    Literal(LiteralString),
+    fn apply_options<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        let mut rng = rand::thread_rng();
 
-    /// Selects random replacement with equal weights
-    Any(AnyReplacement),
+        self.0
+            .choose(&mut rng)
+            .expect("empty Any")
+            .apply_options(caps, input, options)
+    }
+}
 
-    // TODO: implement a bit of serde magic for easier parsing: string would turn into `Literal`,
-    //       array into `Any` and map with u64 keys into `Weights`
-    /// Selects replacement based on relative weights
-    Weights(WeightedReplacement),
+/// Any creation might fail
+#[derive(Debug)]
+pub enum WeightsError {
+    /// Must provide at least one element
+    ZeroItems,
+    /// Sum of all weights must be positive
+    NonPositiveTotalWeights,
+}
 
-    /// Uppercases inner replacement
-    Upper(Box<Replacement>),
+/// Selects any of nested items with relative probabilities
+#[derive(Clone, Debug)]
+pub struct Weights(Vec<(u64, Box<dyn Replacement>)>);
 
-    /// Lowercases inner replacement
-    Lower(Box<Replacement>),
+impl Weights {
+    pub fn new(items: Vec<(u64, Box<dyn Replacement>)>) -> Result<Self, WeightsError> {
+        if items.is_empty() {
+            return Err(WeightsError::ZeroItems);
+        }
+        if items.iter().fold(0, |sum, (w, _)| sum + w) == 0 {
+            return Err(WeightsError::NonPositiveTotalWeights);
+        }
 
-    /// Enables $ templating using regex for inner
-    Template(Box<Replacement>),
+        Ok(Self(items))
+    }
 
-    /// Disables $ templating using regex for inner
-    NoTemplate(Box<Replacement>),
+    pub fn new_boxed(items: Vec<(u64, Box<dyn Replacement>)>) -> Result<Box<Self>, WeightsError> {
+        Ok(Box::new(Self::new(items)?))
+    }
+}
 
-    /// Enables string case mimicing for inner
-    MimicCase(Box<Replacement>),
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for Weights {
+    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        // does not transform input so does not need to implement this
+        panic!("not meant to be called directly");
+    }
 
-    /// Disables string case mimicing for inner
-    NoMimicCase(Box<Replacement>),
+    fn apply_options<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        let mut rng = rand::thread_rng();
 
-    /// Joins left and right parts
-    Concat(Box<Replacement>, Box<Replacement>),
-    // TODO: custom Fn or trait
-    // #[serde(skip)]
-    // Custom(Box<dyn CustomReplacement>),
+        self.0
+            .choose_weighted(&mut rng, |item| item.0)
+            .expect("empty Weights")
+            .1
+            .apply_options(caps, input, options)
+    }
+}
+
+/// Uppercases result of inner replacement
+#[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(transparent)
+)]
+pub struct Upper(Box<dyn Replacement>);
+
+impl Upper {
+    pub fn new(inner: Box<dyn Replacement>) -> Self {
+        Self(inner)
+    }
+
+    pub fn new_boxed(inner: Box<dyn Replacement>) -> Box<Self> {
+        Box::new(Self::new(inner))
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for Upper {
+    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        // this does not do anything on its own, only changes case, invalidating mimic_case
+        panic!("not meant to be called directly");
+    }
+
+    fn apply_options<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        mut options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        let template = options.template.take().unwrap_or(false);
+        // do not mimic case inside this because it will be overwritten
+        let _ = options.mimic_case.insert(false);
+
+        let mut replaced = self.0.apply_options(caps, input, options);
+
+        if template {
+            replaced = self.template(&replaced, caps).into();
+        }
+
+        replaced.to_uppercase().into()
+    }
+}
+
+/// Lowercases result of inner replacement
+#[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(transparent)
+)]
+pub struct Lower(Box<dyn Replacement>);
+
+impl Lower {
+    pub fn new(inner: Box<dyn Replacement>) -> Self {
+        Self(inner)
+    }
+
+    pub fn new_boxed(inner: Box<dyn Replacement>) -> Box<Self> {
+        Box::new(Self::new(inner))
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for Lower {
+    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        // this does not do anything on its own, only changes case, invalidating mimic_case
+        panic!("not meant to be called directly");
+    }
+
+    fn apply_options<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        mut options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        let template = options.template.take().unwrap_or(false);
+        // do not mimic case inside this because it will be overwritten
+        let _ = options.mimic_case.insert(false);
+
+        let mut replaced = self.0.apply_options(caps, input, options);
+
+        if template {
+            replaced = self.template(&replaced, caps).into();
+        }
+
+        replaced.to_lowercase().into()
+    }
+}
+
+/// Enables templating for inner replacement
+#[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(transparent)
+)]
+pub struct Template(Box<dyn Replacement>);
+
+impl Template {
+    pub fn new(inner: Box<dyn Replacement>) -> Self {
+        Self(inner)
+    }
+
+    pub fn new_boxed(inner: Box<dyn Replacement>) -> Box<Self> {
+        Box::new(Self::new(inner))
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for Template {
+    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        // this only changes options
+        panic!("not meant to be called directly");
+    }
+
+    fn apply_options<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        mut options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        let _ = options.template.insert(true);
+        self.0.apply_options(caps, input, options)
+    }
+}
+
+/// Disables templating for inner replacement
+#[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(transparent)
+)]
+pub struct NoTemplate(Box<dyn Replacement>);
+
+impl NoTemplate {
+    pub fn new(inner: Box<dyn Replacement>) -> Self {
+        Self(inner)
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for NoTemplate {
+    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        // this only changes options
+        panic!("not meant to be called directly");
+    }
+
+    fn apply_options<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        mut options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        let _ = options.template.insert(false);
+        self.0.apply_options(caps, input, options)
+    }
+}
+
+/// Enables case mimicking for inner replacement
+#[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(transparent)
+)]
+pub struct MimicCase(Box<dyn Replacement>);
+
+impl MimicCase {
+    pub fn new(inner: Box<dyn Replacement>) -> Self {
+        Self(inner)
+    }
+
+    pub fn new_boxed(inner: Box<dyn Replacement>) -> Box<Self> {
+        Box::new(Self::new(inner))
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for MimicCase {
+    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        // this only changes options
+        panic!("not meant to be called directly");
+    }
+
+    fn apply_options<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        mut options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        let _ = options.mimic_case.insert(true);
+        self.0.apply_options(caps, input, options)
+    }
+}
+
+/// Disables case mimicking for inner replacement
+#[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(transparent)
+)]
+pub struct NoMimicCase(Box<dyn Replacement>);
+
+impl NoMimicCase {
+    pub fn new(inner: Box<dyn Replacement>) -> Self {
+        Self(inner)
+    }
+
+    pub fn new_boxed(inner: Box<dyn Replacement>) -> Box<Self> {
+        Box::new(Self::new(inner))
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for NoMimicCase {
+    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+        // this only changes options
+        panic!("not meant to be called directly");
+    }
+
+    fn apply_options<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        mut options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        let _ = options.mimic_case.insert(false);
+        self.0.apply_options(caps, input, options)
+    }
+}
+
+/// Adds results of left and right replacements together
+#[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(transparent)
+)]
+pub struct Concat((Box<dyn Replacement>, Box<dyn Replacement>));
+
+impl Concat {
+    pub fn new(left: Box<dyn Replacement>, right: Box<dyn Replacement>) -> Self {
+        Self((left, right))
+    }
+
+    pub fn new_boxed(left: Box<dyn Replacement>, right: Box<dyn Replacement>) -> Box<Self> {
+        Box::new(Self::new(left, right))
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Replacement for Concat {
+    fn generate<'a>(
+        &self,
+        caps: &Captures,
+        input: &'a str,
+        options: ReplacementOptions,
+    ) -> Cow<'a, str> {
+        self.0 .0.apply_options(caps, input, options.clone())
+            + self.0 .1.apply_options(caps, input, options)
+    }
 }
 
 #[cfg(test)]
@@ -217,7 +519,10 @@ mod tests {
 
     use regex::{Captures, Regex};
 
-    use super::Replacement;
+    use crate::replacement::{
+        Any, Concat, Literal, Lower, MimicCase, NoMimicCase, NoTemplate, Original, Replacement,
+        ReplacementOptions, Template, Upper, Weights,
+    };
 
     fn make_captions(self_matching_pattern: &str) -> Captures<'_> {
         Regex::new(self_matching_pattern)
@@ -226,20 +531,19 @@ mod tests {
             .unwrap()
     }
 
-    fn apply<'a>(replacement: &Replacement, self_matching_pattern: &'a str) -> Cow<'a, str> {
+    fn apply<'a>(replacement: &dyn Replacement, self_matching_pattern: &'a str) -> Cow<'a, str> {
         replacement
-            .apply(
+            .apply_options(
                 &make_captions(self_matching_pattern),
                 self_matching_pattern,
-                None,
-                None,
+                ReplacementOptions::default(),
             )
             .into()
     }
 
     #[test]
     fn original() {
-        let replacement = Replacement::new_original();
+        let replacement = Original::new();
 
         assert_eq!(apply(&replacement, "bar"), "bar");
         assert_eq!(apply(&replacement, "foo"), "foo");
@@ -247,7 +551,7 @@ mod tests {
 
     #[test]
     fn literal() {
-        let replacement = Replacement::new_literal("bar");
+        let replacement = Literal::new("bar");
 
         assert_eq!(apply(&replacement, "foo"), "bar");
         assert_eq!(apply(&replacement, "bar"), "bar");
@@ -255,31 +559,30 @@ mod tests {
 
     #[test]
     fn literal_templates_by_default() {
-        let replacement = Replacement::new_literal("$0");
+        let replacement = Literal::new("$0");
 
         assert_eq!(apply(&replacement, "foo"), "foo");
     }
 
     #[test]
     fn literal_mimics_case_by_default() {
-        let replacement = Replacement::new_literal("bar");
+        let replacement = Literal::new("bar");
 
         assert_eq!(apply(&replacement, "FOO"), "BAR");
     }
 
     #[test]
     fn constructed_not_templates_by_default() {
-        let replacement =
-            Replacement::new_concat(Replacement::new_literal("$"), Replacement::new_literal("0"));
+        let replacement = Concat::new(Literal::new_boxed("$"), Literal::new_boxed("0"));
 
         assert_eq!(apply(&replacement, "FOO"), "$0");
     }
 
     #[test]
     fn constructed_not_mimics_by_default() {
-        let replacement = Replacement::new_concat(
-            Replacement::new_no_mimic_case(Replacement::new_literal("b")),
-            Replacement::new_no_mimic_case(Replacement::new_literal("ar")),
+        let replacement = Concat::new(
+            NoMimicCase::new_boxed(Literal::new_boxed("b")),
+            NoMimicCase::new_boxed(Literal::new_boxed("ar")),
         );
 
         assert_eq!(apply(&replacement, "FOO"), "bar");
@@ -287,10 +590,8 @@ mod tests {
 
     #[test]
     fn any() {
-        let replacement = Replacement::new_any(vec![
-            Replacement::new_literal("bar"),
-            Replacement::new_literal("baz"),
-        ]);
+        let replacement =
+            Any::new(vec![Literal::new_boxed("bar"), Literal::new_boxed("baz")]).unwrap();
 
         let selected = apply(&replacement, "bar").into_owned();
 
@@ -299,11 +600,12 @@ mod tests {
 
     #[test]
     fn weights() {
-        let replacement = Replacement::new_weights(vec![
-            (1, Replacement::new_literal("bar")),
-            (1, Replacement::new_literal("baz")),
-            (0, Replacement::new_literal("spam")),
-        ]);
+        let replacement = Weights::new(vec![
+            (1, Literal::new_boxed("bar")),
+            (1, Literal::new_boxed("baz")),
+            (0, Literal::new_boxed("spam")),
+        ])
+        .unwrap();
 
         let selected = apply(&replacement, "bar").into_owned();
 
@@ -311,8 +613,8 @@ mod tests {
     }
 
     #[test]
-    fn uppercase() {
-        let replacement = Replacement::new_upper(Replacement::new_original());
+    fn upper() {
+        let replacement = Upper::new(Original::new_boxed());
 
         assert_eq!(apply(&replacement, "lowercase"), "LOWERCASE");
         assert_eq!(apply(&replacement, "UPPERCASE"), "UPPERCASE");
@@ -321,8 +623,8 @@ mod tests {
     }
 
     #[test]
-    fn lowercase() {
-        let replacement = Replacement::new_lower(Replacement::new_original());
+    fn lower() {
+        let replacement = Lower::new(Original::new_boxed());
 
         assert_eq!(apply(&replacement, "lowercase"), "lowercase");
         assert_eq!(apply(&replacement, "UPPERCASE"), "uppercase");
@@ -332,51 +634,47 @@ mod tests {
 
     #[test]
     fn concat() {
-        let replacement =
-            Replacement::new_concat(Replacement::new_original(), Replacement::new_original());
+        let replacement = Concat::new(Original::new_boxed(), Original::new_boxed());
 
         assert_eq!(apply(&replacement, "double"), "doubledouble");
     }
 
     #[test]
     fn template() {
-        let replacement =
-            Replacement::new_no_template(Replacement::new_template(Replacement::new_literal("$0")));
+        let replacement = NoTemplate::new(Template::new_boxed(Literal::new_boxed("$0")));
 
         assert_eq!(apply(&replacement, "template"), "template");
 
-        let replacement = Replacement::new_template(Replacement::new_concat(
-            Replacement::new_literal("$"),
-            Replacement::new_literal("0"),
+        let replacement = Template::new(Concat::new_boxed(
+            Literal::new_boxed("$"),
+            Literal::new_boxed("0"),
         ));
         assert_eq!(apply(&replacement, "template"), "template");
     }
 
     #[test]
     fn no_template() {
-        let replacement = Replacement::new_no_template(Replacement::new_literal("$0"));
+        let replacement = NoTemplate::new(Literal::new_boxed("$0"));
 
         assert_eq!(apply(&replacement, "template"), "$0");
     }
 
     #[test]
     fn mimic_case() {
-        let replacement = Replacement::new_no_mimic_case(Replacement::new_mimic_case(
-            Replacement::new_literal("bar"),
-        ));
+        let replacement = NoMimicCase::new(MimicCase::new_boxed(Literal::new_boxed("bar")));
 
         assert_eq!(apply(&replacement, "FOO"), "BAR");
 
-        let replacement = Replacement::new_mimic_case(Replacement::new_concat(
-            Replacement::new_literal("b"),
-            Replacement::new_literal("ar"),
+        let replacement = MimicCase::new(Concat::new_boxed(
+            Literal::new_boxed("b"),
+            Literal::new_boxed("ar"),
         ));
         assert_eq!(apply(&replacement, "FOO"), "BAR");
     }
 
     #[test]
     fn no_mimic_case() {
-        let replacement = Replacement::new_no_mimic_case(Replacement::new_literal("bar"));
+        let replacement = NoMimicCase::new(Literal::new_boxed("bar"));
 
         assert_eq!(apply(&replacement, "FOO"), "bar");
     }
@@ -385,25 +683,23 @@ mod tests {
     fn expansion() {
         let two_words_regex = Regex::new(r"(\w+) (\w+)").unwrap();
 
-        let swap_words_replacement = Replacement::new_literal("$2 $1");
+        let swap_words_replacement = Literal::new("$2 $1");
         assert_eq!(
-            swap_words_replacement.apply(
+            swap_words_replacement.apply_options(
                 &two_words_regex.captures("swap us").unwrap(),
                 "swap us",
-                None,
-                None
+                ReplacementOptions::default()
             ),
             "us swap"
         );
 
         // nonexistent goup results in empty string
-        let delete_word_replacement = Replacement::new_literal("$nonexistent $2");
+        let delete_word_replacement = Literal::new("$nonexistent $2");
         assert_eq!(
-            delete_word_replacement.apply(
+            delete_word_replacement.apply_options(
                 &two_words_regex.captures("DELETE US").unwrap(),
                 "DELETE US",
-                None,
-                None
+                ReplacementOptions::default()
             ),
             " US"
         );
