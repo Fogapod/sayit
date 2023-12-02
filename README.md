@@ -11,19 +11,46 @@ Currently unusable on it's own because you cannot construct `Accent` using inter
 Accent is a sequence of rules which are applied in order.
 Each rule consists of regex pattern and a replacement. When regex match occurs the replacement is called. It then decides what to put instead (if anything).
 
-Supported replacements:
+Default replacements:
 
-- `Original`: Do not replace
-- `Literal("text")`: Puts string as is. Has templating and case mimicking by default
-- `Any([inner, ...])`: Selects random replacement with equal weights
-- `Weights([(weight, inner), ...])`: Selects replacement based on relative weights
-- `Upper(inner)`: Converts inner result to uppercase
-- `Lower(inner)`: Converts inner result to lowercase
-- `Template(inner)`: Enables regex templating for inner types
-- `NoTemplate(inner)`: Disables regex templating for inner types
-- `MimicCase(inner)`: Enables case mimicking for inner types
-- `NoMimicCase(inner)`: Disables case mimicking for inner types
-- `Concat(left, right)`: Adds `left` and `right` together
+- `Original: ()`: Do not replace
+- `Literal :"text"`: Puts string as is. Has templating and case mimicking by default
+- `Any: [inner, ...]`: Selects random replacement with equal weights
+- `Weights: [(weight, inner), ...]`: Selects replacement based on relative weights
+- `Upper: inner`: Converts inner result to uppercase
+- `Lower: inner`: Converts inner result to lowercase
+- `Template: inner`: Enables regex templating for inner type
+- `NoTemplate: inner`: Disables regex templating for inner type
+- `MimicCase: inner`: Enables case mimicking for inner type
+- `NoMimicCase: inner`: Disables case mimicking for inner type
+- `Concat: (left, right)`: Adds `left` and `right` together
+
+## Replacement trait
+
+Simplest custom replacement that always returns `"foo"`:
+
+```rs
+// deserialization is only required with `deserialize` crate feature
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct Foo;
+
+// `typetag` dependency is required to deserialize trait object
+#[typetag::deserialize]
+impl pink_accents::replacement::Replacement for Foo {
+    fn generate<'a>(
+        &self,
+        // regex match
+        caps: &regex::Captures,
+        // full input. this is only needed because of the broken regex
+        // replace_all lifetimes
+        input: &'a str,
+        // current options. they are applied afterwards
+        options: pink_accents::replacement::ReplacementOptions,
+    ) -> Cow<'a, str> {
+        "foo".into()
+    }
+}
+```
 
 ## Serialized format
 
@@ -40,33 +67,33 @@ Full reference:
     words: [
         // this is the simplest rule to replace all "windows" words (separated by regex \b)
         // occurences with "linux", case sensitive
-        ("windows", Literal("linux")),
+        ("windows", {"Literal": "linux"}),
         // this replaces word "OS" with one of replacements, with equal probability
-        ("os", Any([
-            Literal("Ubuntu"),
-            Literal("Arch"),
-            Literal("Gentoo"),
-        ])),
+        ("os", {"Any": [
+            {"Literal": "Ubuntu"},
+            {"Literal": "Arch"},
+            {"Literal": "Gentoo"},
+        ]}),
         // `Literal` supports regex templating: https://docs.rs/regex/latest/regex/struct.Regex.html#example-9
         // this will swwap "a" and "b" "ab" -> "ba"
-        (r"(a)(?P<b_group>b)", Literal("$b_group$a")),
+        (r"(a)(?P<b_group>b)", {"Literal": "$b_group$a"}),
     ],
 
     // pairs of (regex, replacement)
     // this is same as `words` except these are used as is, without \b
     patterns: [
         // inserts one of the honks. first value of `Weights` is relative weight. higher is better
-        ("$", Weights([
-            (32, Literal(" HONK!")),
-            (16, Literal(" HONK HONK!")),
-            (08, Literal(" HONK HONK HONK!")),
+        ("$", {"Weights": [
+            (32, {"Literal": " HONK!"}),
+            (16, {"Literal": " HONK HONK!"}),
+            (08, {"Literal": " HONK HONK HONK!"}),
             // ultra rare sigma honk - 1 / 56
-            (01, Literal(" HONK HONK HONK HONK!!!!!!!!!!!!!!!")),
-        ])),
+            (01, {"Literal": " HONK HONK HONK HONK!!!!!!!!!!!!!!!"}),
+        ]}),
         // lowercases all `p` letters (use "p" match from `Original`, then lowercase)
-        ("p", Lowercase(Original)),
+        ("p", {"Lower": {"Original": ()}}),
         // uppercases all `p` letters, undoing previous operation
-        ("p", Uppercase(Original)),
+        ("p", {"Upper": {"Original": ()}}),
     ],
 
     // accent can be used with intensity (non negative value). higher intensities can either extend
@@ -76,33 +103,31 @@ Full reference:
         // extends previous intensity (level 0, base one in this case), adding additional rules
         // below existingones. words and patterns keep their relative order though - words are
         // processed first
-        1: Extend(
-            (
-                words: [
-                    // even though we are extending, defining same rule will overwrite result.
-                    // relative order of rules remain the same: "windows" will remain first
-                    ("windows", Literal("windoos")),
-                ],
+        1: Extend((
+            words: [
+                // even though we are extending, defining same rule will overwrite result.
+                // relative order of rules remain the same: "windows" will remain first
+                ("windows", {"Literal": "windoos"}),
+            ],
 
-                // extend patterns, adding 1 more rule
-                patterns: [
-                    // replacements can be nested arbitrarily
-                    ("[A-Z]", Weights([
-                        // 50% to replace capital letter with one of the Es
-                        (1, Any([
-                            Literal("E"),
-                            Literal("Ē"),
-                            Literal("Ê"),
-                            Literal("Ë"),
-                            Literal("È"),
-                            Literal("É"),
-                        ])),
-                        // 50% to do nothing, no replacement
-                        (1, Original),
-                    ])),
-                ],
-            ),
-        ),
+            // extend patterns, adding 1 more rule
+            patterns: [
+                // replacements can be nested arbitrarily
+                ("[A-Z]", {"Weights": [
+                    // 50% to replace capital letter with one of the Es
+                    (1, {"Any": [
+                        {"Literal": "E"},
+                        {"Literal": "Ē"},
+                        {"Literal": "Ê"},
+                        {"Literal": "Ë"},
+                        {"Literal": "È"},
+                        {"Literal": "É"},
+                    ]}),
+                    // 50% to do nothing, no replacement
+                    (1, {"Original": ()}),
+                ]}),
+            ],
+        )),
 
         // replace intensity 1 entirely. in this case with nothing. remove all rules on intensity 2+
         2: Replace(()),

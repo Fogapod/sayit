@@ -48,33 +48,31 @@
         // extends previous intensity (level 0, base one in this case), adding additional rules
         // below existingones. words and patterns keep their relative order though - words are
         // processed first
-        1: Extend(
-            (
-                words: [
-                    // even though we are extending, defining same rule will overwrite result.
-                    // relative order of rules remain the same: "windows" will remain first
-                    ("windows", {"Literal": "windoos"}),
-                ],
+        1: Extend((
+            words: [
+                // even though we are extending, defining same rule will overwrite result.
+                // relative order of rules remain the same: "windows" will remain first
+                ("windows", {"Literal": "windoos"}),
+            ],
 
-                // extend patterns, adding 1 more rule
-                patterns: [
-                    // replacements can be nested arbitrarily
-                    ("[A-Z]", {"Weights": [
-                        // 50% to replace capital letter with one of the Es
-                        (1, {"Any": [
-                            {"Literal": "E"},
-                            {"Literal": "Ē"},
-                            {"Literal": "Ê"},
-                            {"Literal": "Ë"},
-                            {"Literal": "È"},
-                            {"Literal": "É"},
-                        ]}),
-                        // 50% to do nothing, no replacement
-                        (1, {"Original": ()}),
+            // extend patterns, adding 1 more rule
+            patterns: [
+                // replacements can be nested arbitrarily
+                ("[A-Z]", {"Weights": [
+                    // 50% to replace capital letter with one of the Es
+                    (1, {"Any": [
+                        {"Literal": "E"},
+                        {"Literal": "Ē"},
+                        {"Literal": "Ê"},
+                        {"Literal": "Ë"},
+                        {"Literal": "È"},
+                        {"Literal": "É"},
                     ]}),
-                ],
-            ),
-        ),
+                    // 50% to do nothing, no replacement
+                    (1, {"Original": ()}),
+                ]}),
+            ],
+        )),
 
         // replace intensity 1 entirely. in this case with nothing. remove all rules on intensity 2+
         2: Replace(()),
