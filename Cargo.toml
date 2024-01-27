@@ -19,13 +19,26 @@ include = [
 ]
 
 [dependencies]
+# random replacements
 rand = "0.8"
+
+# pattern definition
 regex = "1.10"
+
+# logging
 log = "0.4"
-serde = { version = "1", features = ["derive"], optional = true }
-ron = { version = "0.8", optional = true }
+
+# cli parsing
 clap = { version = "4.4", optional = true, features = ["derive"] }
-typetag = "0.2"
+
+# deserialization for Replacement trait
+serde = { version = "1", features = ["derive"], optional = true }
+typetag = { version = "0.2", optional = true }
+
+# deserializing ron file format
+ron = { version = "0.8", optional = true }
+
+# clone stored Replacement trait objects
 dyn-clone = "1.0"
 
 [dev-dependencies]
@@ -34,8 +47,10 @@ criterion = { version = "0.4", features = ["html_reports"] }
 
 [features]
 default = ["deserialize"]
-deserialize = ["dep:serde"]
-cli = ["dep:clap", "deserialize", "dep:ron"]
+
+deserialize = ["dep:serde", "dep:typetag"]
+ron = ["deserialize", "dep:ron"]
+cli = ["dep:clap", "ron"]
 
 [profile.dev]
 opt-level = 3
