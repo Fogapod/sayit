@@ -61,17 +61,15 @@ impl LiteralString {
     /// Examine given string and try to adjust to it's case. ascii only
     #[doc(hidden)] // pub for bench
     pub fn mimic_ascii_case(&self, source: &str) -> String {
-        let mut body = self.body.clone();
-
-        // assume lowercase ascii is "weakest" form. anything else returns as is
+        // only entirely lowercased string is changed. assume case has meaning for everything else
         if !self.is_ascii_lowercase {
-            return body;
+            return self.body.clone();
         }
 
         // if source was all uppercase we force all uppercase for replacement. this is likely to
         // give false positives on short inputs like "I" or abbreviations
         if source.chars().all(|c| c.is_ascii_uppercase()) {
-            return body.to_ascii_uppercase();
+            return self.body.to_ascii_uppercase();
         }
 
         // no constraints if source was all lowercase
@@ -79,11 +77,13 @@ impl LiteralString {
             .chars()
             .all(|c| !c.is_ascii() || c.is_ascii_lowercase())
         {
-            return body;
+            return self.body.clone();
         }
 
         // TODO: SIMD this
         if source.chars().count() == self.char_count {
+            let mut body = self.body.clone();
+
             for (i, c_old) in source.chars().enumerate() {
                 if c_old.is_ascii_lowercase() {
                     body.get_mut(i..i + 1)
@@ -95,9 +95,11 @@ impl LiteralString {
                         .make_ascii_uppercase()
                 }
             }
+
+            return body;
         }
 
-        body
+        self.body.clone()
     }
 }
 

@@ -1,7 +1,7 @@
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
-use pink_accents::utils::LiteralString;
+use sayit::utils::LiteralString;
 use std::fs;
 
 pub fn read_sample_file() -> String {

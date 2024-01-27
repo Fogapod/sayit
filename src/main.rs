@@ -6,7 +6,7 @@ use std::{
 
 use clap::Parser;
 
-use pink_accents::Accent;
+use sayit::Accent;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]

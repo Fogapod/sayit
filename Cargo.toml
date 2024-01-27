@@ -1,11 +1,11 @@
 [package]
-name = "pink_accents"
+name = "sayit"
 version = "0.0.6"
 authors = ["fogapod"]
 edition = "2021"
 description = "Replacement of patterns in string to simulate speech accents"
-repository = "https://github.com/Fogapod/pink_accents"
-homepage = "https://github.com/Fogapod/pink_accents"
+repository = "https://github.com/Fogapod/sayit"
+homepage = "https://github.com/Fogapod/sayit"
 license = "AGPL-3.0"
 keywords = ["text"]
 categories = ["text-processing"]
@@ -46,7 +46,7 @@ lto = true
 strip = true
 
 [[bin]]
-name = "pink_accents"
+name = "sayit"
 required-features = ["cli"]
 
 [[bench]]

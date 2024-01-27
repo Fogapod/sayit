@@ -1,6 +1,6 @@
 use criterion::criterion_main;
 use criterion::{criterion_group, Criterion};
-use pink_accents::Accent;
+use sayit::Accent;
 use std::fs;
 
 pub fn read_accent(filename: &str) -> Accent {

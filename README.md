@@ -1,4 +1,4 @@
-# pink accents
+# Say It!
 
 Allows defining a set of patterns to be replaced in string. This is a glorified regex replace, a sequence of them. Primary use case is for simulating silly speech accents.
 
@@ -36,7 +36,7 @@ pub struct Foo;
 
 // `typetag` dependency is required to deserialize trait object
 #[typetag::deserialize]
-impl pink_accents::replacement::Replacement for Foo {
+impl sayit::replacement::Replacement for Foo {
     fn generate<'a>(
         &self,
         // regex match
@@ -45,7 +45,7 @@ impl pink_accents::replacement::Replacement for Foo {
         // replace_all lifetimes
         input: &'a str,
         // current options. they are applied afterwards
-        options: pink_accents::replacement::ReplacementOptions,
+        options: sayit::replacement::ReplacementOptions,
     ) -> Cow<'a, str> {
         "foo".into()
     }

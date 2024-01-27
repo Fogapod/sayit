@@ -524,11 +524,8 @@ mod tests {
         ReplacementOptions, Template, Upper, Weights,
     };
 
-    fn make_captions(self_matching_pattern: &str) -> Captures<'_> {
-        Regex::new(self_matching_pattern)
-            .unwrap()
-            .captures(self_matching_pattern)
-            .unwrap()
+    fn make_captions(pattern: &str) -> Captures<'_> {
+        Regex::new(".+").unwrap().captures(pattern).unwrap()
     }
 
     fn apply<'a>(replacement: &dyn Replacement, self_matching_pattern: &'a str) -> Cow<'a, str> {
