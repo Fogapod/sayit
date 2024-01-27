@@ -174,9 +174,11 @@ mod tests {
     use regex::Regex;
     use std::fs;
 
-    use crate::replacement::{Any, Literal, Original, Weights};
-    use crate::rule::Rule;
-    use crate::Accent;
+    use crate::{
+        replacement::{Any, Literal, Original, Weights},
+        rule::Rule,
+        Accent,
+    };
 
     #[test]
     fn ron_minimal() {
@@ -557,7 +559,7 @@ mod tests {
         // TODO: either patch rand::thread_rng somehow or change interface to pass rng directly?
         // let test_string = "Hello World! test 12 23";
         // for intensity in manual.intensities() {
-        //     assert_eq!(parsed.apply(test_string, intensity), manual.apply(test_string, intensity));
+        //     assert_eq!(parsed.say_it(test_string, intensity), manual.say_it(test_string, intensity));
         //  }
     }
 
@@ -619,11 +621,11 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(accent.apply("intensity", 0), "0");
-        assert_eq!(accent.apply("intensity", 1), "1");
-        assert_eq!(accent.apply("intensity", 4), "1");
-        assert_eq!(accent.apply("intensity", 5), "5");
-        assert_eq!(accent.apply("intensity", 9000 + 1), "5");
+        assert_eq!(accent.say_it("intensity", 0), "0");
+        assert_eq!(accent.say_it("intensity", 1), "1");
+        assert_eq!(accent.say_it("intensity", 4), "1");
+        assert_eq!(accent.say_it("intensity", 5), "5");
+        assert_eq!(accent.say_it("intensity", 9000 + 1), "5");
     }
 
     #[test]
@@ -639,25 +641,35 @@ mod tests {
                     .unwrap();
 
             for intensity in accent.intensities() {
-                let _ = accent.apply(&sample_text, intensity);
+                let _ = accent.say_it(&sample_text, intensity);
             }
         }
     }
 
     #[test]
     fn custom_replacement_works() {
+        /// Increments matched number by given amount. Does nothing for overflow or bad match
         #[derive(Clone, Debug, serde::Deserialize)]
-        pub struct Custom;
+        pub struct Increment(u32);
 
         #[typetag::deserialize]
-        impl crate::replacement::Replacement for Custom {
+        impl crate::replacement::Replacement for Increment {
             fn generate<'a>(
                 &self,
-                _: &regex::Captures,
-                _: &'a str,
-                _: crate::replacement::ReplacementOptions,
+                caps: &regex::Captures,
+                input: &'a str,
             ) -> std::borrow::Cow<'a, str> {
-                "replaced foo!".into()
+                let input = self.current_match(caps, input);
+
+                let input_number: i64 = match input.parse() {
+                    Ok(parsed) => parsed,
+                    Err(_) => return input.into(),
+                };
+
+                match input_number.checked_add(self.0 as i64) {
+                    Some(added) => added.to_string().into(),
+                    None => input.into(),
+                }
             }
         }
 
@@ -665,13 +677,13 @@ mod tests {
             r#"
 (
     patterns: [
-        ("foo", {"Custom": ()})
+        (r"\d+", {"Increment": (101)})
     ]
 )
 "#,
         )
         .unwrap();
 
-        assert_eq!(accent.apply("foo", 0), "replaced foo!");
+        assert_eq!(accent.say_it("565 0", 0), "666 101");
     }
 }

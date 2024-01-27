@@ -20,46 +20,53 @@ clone_trait_object!(Replacement);
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 pub trait Replacement: DynClone + Debug {
     /// Select suitable replacement
-    fn generate<'a>(
-        &self,
-        caps: &Captures,
-        input: &'a str,
-        options: ReplacementOptions,
-    ) -> Cow<'a, str>;
+    ///
+    /// caps is actual match
+    /// input is reference to full input. this is temporary hack to preserve lifetime because of
+    /// broken regex replace lifetime: https://github.com/rust-lang/regex/issues/777
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str>;
 
     /// Runs after `generate` and applies additional operations set by options
+    ///
+    /// By default it does not want to do anything
     fn apply_options<'a>(
         &self,
         caps: &Captures,
         input: &'a str,
-        mut options: ReplacementOptions,
+        options: ReplacementOptions,
     ) -> Cow<'a, str> {
-        let template = options.template.take().unwrap_or(false);
-        let mimic_case = options.mimic_case.take().unwrap_or(false);
+        let mut output = self.generate(caps, input);
 
-        let mut transformed = self.generate(caps, input, options);
-
-        if template {
-            transformed = self.template(&transformed, caps).into()
+        if options.template.unwrap_or(false) {
+            output = self.template(&output, caps).into()
         }
 
-        if mimic_case {
-            transformed = self.mimic_case(&transformed, input).into();
+        if options.mimic_case.unwrap_or(false) {
+            output = self
+                .mimic_case(&output, self.current_match(caps, input))
+                .into();
         }
 
-        transformed
+        output
     }
 
+    /// Default templating implementation using `regex::Caps::expand`
     fn template(&self, template: &str, caps: &Captures) -> String {
         let mut dst = String::new();
         caps.expand(template, &mut dst);
         dst
     }
 
+    /// Default expensive case mimicking implementation
     fn mimic_case(&self, target: &str, source: &str) -> String {
         // FIXME: initializing LiteralString is super expensive!!!!
         let s = LiteralString::from(target);
         s.mimic_ascii_case(source)
+    }
+
+    /// Returns full match (group 0)
+    fn current_match<'a>(&self, caps: &Captures, input: &'a str) -> &'a str {
+        &input[caps.get(0).expect("match 0 is always present").range()]
     }
 }
 
@@ -81,8 +88,8 @@ impl Original {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Original {
-    fn generate<'a>(&self, caps: &Captures, input: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
-        (&input[caps.get(0).expect("match 0 is always present").range()]).into()
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
+        self.current_match(caps, input).into()
     }
 }
 
@@ -108,7 +115,7 @@ impl Literal {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Literal {
-    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
         // implementation lives in `apply` entirely
         panic!("not meant to be called directly");
     }
@@ -141,7 +148,8 @@ impl Replacement for Literal {
         // expensive path because we cannot use precomputed LiteralString, new one must be created
         // after templating
         let templated = self.template(&self.0.body, caps);
-        self.mimic_case(&templated, input).into()
+        self.mimic_case(&templated, self.current_match(caps, input))
+            .into()
     }
 }
 
@@ -172,7 +180,7 @@ impl Any {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Any {
-    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
         // does not transform input so does not need to implement this
         panic!("not meant to be called directly");
     }
@@ -192,7 +200,7 @@ impl Replacement for Any {
     }
 }
 
-/// Any creation might fail
+/// Weights creation might fail
 #[derive(Debug)]
 pub enum WeightsError {
     /// Must provide at least one element
@@ -224,7 +232,7 @@ impl Weights {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Weights {
-    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
         // does not transform input so does not need to implement this
         panic!("not meant to be called directly");
     }
@@ -266,7 +274,7 @@ impl Upper {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Upper {
-    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
         // this does not do anything on its own, only changes case, invalidating mimic_case
         panic!("not meant to be called directly");
     }
@@ -312,7 +320,7 @@ impl Lower {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Lower {
-    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
         // this does not do anything on its own, only changes case, invalidating mimic_case
         panic!("not meant to be called directly");
     }
@@ -358,7 +366,7 @@ impl Template {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Template {
-    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
         // this only changes options
         panic!("not meant to be called directly");
     }
@@ -391,7 +399,7 @@ impl NoTemplate {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for NoTemplate {
-    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
         // this only changes options
         panic!("not meant to be called directly");
     }
@@ -428,7 +436,7 @@ impl MimicCase {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for MimicCase {
-    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
         // this only changes options
         panic!("not meant to be called directly");
     }
@@ -465,7 +473,7 @@ impl NoMimicCase {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for NoMimicCase {
-    fn generate<'a>(&self, _: &Captures, _: &'a str, _: ReplacementOptions) -> Cow<'a, str> {
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
         // this only changes options
         panic!("not meant to be called directly");
     }
@@ -502,14 +510,30 @@ impl Concat {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Concat {
-    fn generate<'a>(
+    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
+        panic!("not meant to be called directly");
+    }
+
+    fn apply_options<'a>(
         &self,
         caps: &Captures,
         input: &'a str,
         options: ReplacementOptions,
     ) -> Cow<'a, str> {
-        self.0 .0.apply_options(caps, input, options.clone())
-            + self.0 .1.apply_options(caps, input, options)
+        let mut output = self.0 .0.apply_options(caps, input, options.clone())
+            + self.0 .1.apply_options(caps, input, options.clone());
+
+        if options.template.unwrap_or(false) {
+            output = self.template(&output, caps).into()
+        }
+
+        if options.mimic_case.unwrap_or(false) {
+            output = self
+                .mimic_case(&output, self.current_match(caps, input))
+                .into();
+        }
+
+        output
     }
 }
 

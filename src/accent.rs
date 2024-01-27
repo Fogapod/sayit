@@ -123,7 +123,7 @@ impl Accent {
     }
 
     /// Walks rules for given intensity from top to bottom and applies them
-    pub fn apply<'a>(&self, text: &'a str, intensity: u64) -> Cow<'a, str> {
+    pub fn say_it<'a>(&self, text: &'a str, intensity: u64) -> Cow<'a, str> {
         // TODO: binary search? probably now worth
         //
         // Go from the end and pick first intensity that is less or eaual to requested. This is
@@ -176,6 +176,6 @@ mod tests {
             BTreeMap::new(),
         );
 
-        assert_eq!(e.apply("Hello World!", 0), "Eeeee Eeeee!");
+        assert_eq!(e.say_it("Hello World!", 0), "Eeeee Eeeee!");
     }
 }

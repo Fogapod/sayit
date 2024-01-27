@@ -34,7 +34,7 @@ fn accents(c: &mut Criterion) {
         g.bench_function(name, |b| {
             b.iter(|| {
                 for line in &lines {
-                    accent.apply(&line, 0);
+                    accent.say_it(&line, 0);
                 }
             })
         });

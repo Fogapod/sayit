@@ -31,7 +31,7 @@ struct Args {
 fn apply_accent(accent: &Accent, instensity: u64, line: io::Result<String>) -> Result<(), String> {
     println!(
         "{}",
-        accent.apply(
+        accent.say_it(
             &line.map_err(|err| format!("reading line: {err}"))?,
             instensity
         )
