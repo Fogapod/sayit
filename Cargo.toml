@@ -1,6 +1,6 @@
 [package]
 name = "sayit"
-version = "0.0.6"
+version = "0.0.7"
 authors = ["fogapod"]
 edition = "2021"
 description = "Replacement of patterns in string to simulate speech accents"
