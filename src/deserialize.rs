@@ -648,12 +648,14 @@ mod tests {
 
     #[test]
     fn custom_replacement_works() {
+        use crate::replacement::Replacement;
+
         /// Increments matched number by given amount. Does nothing for overflow or bad match
         #[derive(Clone, Debug, serde::Deserialize)]
         pub struct Increment(u32);
 
         #[typetag::deserialize]
-        impl crate::replacement::Replacement for Increment {
+        impl Replacement for Increment {
             fn generate<'a>(
                 &self,
                 caps: &regex::Captures,
@@ -677,7 +679,7 @@ mod tests {
             r#"
 (
     patterns: [
-        (r"\d+", {"Increment": (101)})
+        (r"\d+", {"Increment": (101)}),
     ]
 )
 "#,

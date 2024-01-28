@@ -8,6 +8,7 @@ use crate::utils::LiteralString;
 use rand::seq::SliceRandom;
 use regex::Captures;
 
+/// Alters behaviour of some replacements
 #[derive(Clone, Default)]
 pub struct ReplacementOptions {
     template: Option<bool>,
@@ -16,19 +17,18 @@ pub struct ReplacementOptions {
 
 clone_trait_object!(Replacement);
 
-/// Receives match and provides replacement
+/// Receives match and provides replacement//! # Table of contents
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 pub trait Replacement: DynClone + Debug {
     /// Select suitable replacement
     ///
     /// caps is actual match
-    /// input is reference to full input. this is temporary hack to preserve lifetime because of
-    /// broken regex replace lifetime: https://github.com/rust-lang/regex/issues/777
+    /// input is reference to full input
     fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str>;
 
     /// Runs after `generate` and applies additional operations set by options
     ///
-    /// By default it does not want to do anything
+    /// By default it does not perform extra work
     fn apply_options<'a>(
         &self,
         caps: &Captures,
@@ -50,7 +50,7 @@ pub trait Replacement: DynClone + Debug {
         output
     }
 
-    /// Default templating implementation using `regex::Caps::expand`
+    /// Default templating implementation using [`regex::Captures::expand`]
     fn template(&self, template: &str, caps: &Captures) -> String {
         let mut dst = String::new();
         caps.expand(template, &mut dst);
@@ -394,6 +394,10 @@ pub struct NoTemplate(Box<dyn Replacement>);
 impl NoTemplate {
     pub fn new(inner: Box<dyn Replacement>) -> Self {
         Self(inner)
+    }
+
+    pub fn new_boxed(inner: Box<dyn Replacement>) -> Box<Self> {
+        Box::new(Self::new(inner))
     }
 }
 

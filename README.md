@@ -1,61 +1,21 @@
 # Say It!
 
-Allows defining a set of patterns to be replaced in string. This is a glorified regex replace, a sequence of them. Primary use case is for simulating silly speech accents.
+String replacements using regex.
+
+[![Crates.io](https://img.shields.io/crates/v/sayit)](https://crates.io/crates/sayit)
+[![Documentation](https://docs.rs/sayit/badge.svg)](https://docs.rs/sayit)
 
 Originally based on python [pink-accents](https://git.based.computer/fogapod/pink-accents) and primarily developed for [ssnt](https://github.com/SS-NT/ssnt/tree/main) game.
 
-Currently unusable on it's own because you cannot construct `Accent` using internal structures but there is a plan to support programmatic definitions.
+## Overview
 
-## Types of replacements
+Provides a way to define a set of rules for replacing text in string. Each rule consists of
+regex pattern and Replacement trait object. The original use case is to simulate
+mispronounciations in speech accents via text.
 
-Accent is a sequence of rules which are applied in order.
-Each rule consists of regex pattern and a replacement. When regex match occurs the replacement is called. It then decides what to put instead (if anything).
-
-Default replacements:
-
-- `Original: ()`: Do not replace
-- `Literal :"text"`: Puts string as is. Has templating and case mimicking by default
-- `Any: [inner, ...]`: Selects random replacement with equal weights
-- `Weights: [(weight, inner), ...]`: Selects replacement based on relative weights
-- `Upper: inner`: Converts inner result to uppercase
-- `Lower: inner`: Converts inner result to lowercase
-- `Template: inner`: Enables regex templating for inner type
-- `NoTemplate: inner`: Disables regex templating for inner type
-- `MimicCase: inner`: Enables case mimicking for inner type
-- `NoMimicCase: inner`: Disables case mimicking for inner type
-- `Concat: (left, right)`: Adds `left` and `right` together
-
-## Replacement trait
-
-Simplest custom replacement that always returns `"foo"`:
-
-```rs
-// deserialization is only required with `deserialize` crate feature
-#[derive(Clone, Debug, serde::Deserialize)]
-pub struct Foo;
-
-// `typetag` dependency is required to deserialize trait object
-#[typetag::deserialize]
-impl sayit::replacement::Replacement for Foo {
-    fn generate<'a>(
-        &self,
-        // regex match
-        caps: &regex::Captures,
-        // full input. this is only needed because of the broken regex
-        // replace_all lifetimes
-        input: &'a str,
-        // current options. they are applied afterwards
-        options: sayit::replacement::ReplacementOptions,
-    ) -> Cow<'a, str> {
-        "foo".into()
-    }
-}
-```
+See docs.rs documentation for API overview.
 
 ## Serialized format
-
-`deserialize` feature provides an opinionated way of defining rules, specifically designed for speech accents.
-Deserialization is primarily developed to support [ron](https://github.com/ron-rs/ron) format which has it's quirks but should work in json and maybe others.
 
 Full reference:
 
