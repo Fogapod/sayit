@@ -520,14 +520,17 @@ impl Replacement for Concat {
         input: &'a str,
         options: ReplacementOptions,
     ) -> Cow<'a, str> {
-        let mut output = self.0 .0.apply_options(caps, input, options.clone())
-            + self.0 .1.apply_options(caps, input, options.clone());
+        let template = options.template.unwrap_or(false);
+        let mimic_case = options.mimic_case.unwrap_or(false);
 
-        if options.template.unwrap_or(false) {
+        let mut output = self.0 .0.apply_options(caps, input, options.clone())
+            + self.0 .1.apply_options(caps, input, options);
+
+        if template {
             output = self.template(&output, caps).into()
         }
 
-        if options.mimic_case.unwrap_or(false) {
+        if mimic_case {
             output = self
                 .mimic_case(&output, self.current_match(caps, input))
                 .into();
