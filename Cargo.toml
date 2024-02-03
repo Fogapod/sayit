@@ -49,8 +49,7 @@ criterion = { version = "0.4", features = ["html_reports"] }
 default = ["deserialize"]
 
 deserialize = ["dep:serde", "dep:typetag"]
-ron = ["deserialize", "dep:ron"]
-cli = ["dep:clap", "ron"]
+cli = ["deserialize", "dep:clap", "dep:ron"]
 
 [profile.dev]
 opt-level = 3

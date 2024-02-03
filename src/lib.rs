@@ -36,17 +36,17 @@
 //!
 //! Default replacments are:
 //!
-//! * [`replacement::Original`] does not replace (leaves original match as is)
-//! * [`replacement::Literal`] puts given string
-//! * [`replacement::Any`] selects random inner replacement with equal weights
-//! * [`replacement::Weights`] selects random inner replacement based on relative weights
-//! * [`replacement::Upper`] converts inner result to uppercase
-//! * [`replacement::Lower`] converts inner result to lowercase
-//! * [`replacement::Template`] enables templating for inner type
-//! * [`replacement::NoTemplate`] disables templating for inner type
-//! * [`replacement::MimicCase`] enables case mimicking for inner type
-//! * [`replacement::NoMimicCase`] disables case mimicking for inner type
-//! * [`replacement::Concat`] runs left and right inner branches and adds them together
+//! * [`Original`] does not replace (leaves original match as is)
+//! * [`Literal`] puts given string
+//! * [`Any`] selects random inner replacement with equal weights
+//! * [`Weights`] selects random inner replacement based on relative weights
+//! * [`Upper`] converts inner result to uppercase
+//! * [`Lower`] converts inner result to lowercase
+//! * [`Template`] enables templating for inner type
+//! * [`NoTemplate`] disables templating for inner type
+//! * [`MimicCase`] enables case mimicking for inner type
+//! * [`NoMimicCase`] disables case mimicking for inner type
+//! * [`Concat`] runs left and right inner branches and adds them together
 //!
 //! # Implementing Replacement trait
 //!
@@ -54,7 +54,7 @@
 //!
 //! ```rust
 //! use sayit::{
-//!     replacement::{Replacement, ReplacementOptions},
+//!     replacement::Replacement,
 //!     Accent,
 //! };
 //!
@@ -110,10 +110,20 @@
 //! Name | Description | Default?
 //! ---|---|---
 //! `deserialize` | enables deserialization for [`Replacement`] trait | yes
-//! `ron` | enables ron format deserialization, requires `deserialize` | no
 //! `cli` | required to run CLI tool | no
 //!
 //! [`Replacement`]: crate::replacement::Replacement
+//! [`Original`]: crate::replacement::Original
+//! [`Literal`]: crate::replacement::Literal
+//! [`Any`]: crate::replacement::Any
+//! [`Weights`]: crate::replacement::Weights
+//! [`Upper`]: crate::replacement::Upper
+//! [`Lower`]: crate::replacement::Lower
+//! [`Template`]: crate::replacement::Template
+//! [`NoTemplate`]: crate::replacement::NoTemplate
+//! [`MimicCase`]: crate::replacement::MimicCase
+//! [`NoMimicCase`]: crate::replacement::NoMimicCase
+//! [`Concat`]: crate::replacement::Concat
 
 mod accent;
 mod intensity;
