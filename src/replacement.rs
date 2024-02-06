@@ -17,7 +17,7 @@ pub struct ReplacementOptions {
 
 clone_trait_object!(Replacement);
 
-/// Receives match and provides replacement//! # Table of contents
+/// Receives match and provides replacement
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 pub trait Replacement: DynClone + Debug {
     /// Select suitable replacement
@@ -26,7 +26,7 @@ pub trait Replacement: DynClone + Debug {
     /// input is reference to full input
     fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str>;
 
-    /// Runs after `generate` and applies additional operations set by options
+    /// Runs after [`generate`][Self::generate] and applies additional operations set by options
     ///
     /// By default it does not perform extra work
     fn apply_options<'a>(
@@ -70,8 +70,9 @@ pub trait Replacement: DynClone + Debug {
     }
 }
 
-/// Shortcut for `"$0"` `Literal`. Returns entire match. Does not act as template by default unlike
-/// `Literal`
+/// Same as [`Literal`] with `"$0"` argument: returns entire match.
+///
+/// Does not act as template by default unlike [`Literal`]
 #[derive(Clone, Debug, Default)] // i dont know why clippy DEMANDS default here. its nuts
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 pub struct Original;
@@ -93,8 +94,9 @@ impl Replacement for Original {
     }
 }
 
-/// Static string. Acts as template, see regex docs for syntax:
-/// `https://docs.rs/regex/latest/regex/struct.Regex.html#example-9`
+/// Static string
+///
+/// Acts as regex template, syntax doc: <https://docs.rs/regex/latest/regex/struct.Regex.html#example-9>
 #[derive(Clone, Debug)]
 #[cfg_attr(
     feature = "deserialize",
@@ -116,7 +118,6 @@ impl Literal {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Literal {
     fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        // implementation lives in `apply` entirely
         panic!("not meant to be called directly");
     }
 
@@ -153,7 +154,7 @@ impl Replacement for Literal {
     }
 }
 
-/// Any creation might fail
+/// [`Any`] creation might fail
 #[derive(Debug)]
 pub enum AnyError {
     /// Must provide at least one element
@@ -200,7 +201,7 @@ impl Replacement for Any {
     }
 }
 
-/// Weights creation might fail
+/// [`Weights`] creation might fail
 #[derive(Debug)]
 pub enum WeightsError {
     /// Must provide at least one element
@@ -233,7 +234,6 @@ impl Weights {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Weights {
     fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        // does not transform input so does not need to implement this
         panic!("not meant to be called directly");
     }
 
@@ -275,7 +275,6 @@ impl Upper {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Upper {
     fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        // this does not do anything on its own, only changes case, invalidating mimic_case
         panic!("not meant to be called directly");
     }
 
@@ -321,7 +320,6 @@ impl Lower {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Lower {
     fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        // this does not do anything on its own, only changes case, invalidating mimic_case
         panic!("not meant to be called directly");
     }
 
@@ -367,7 +365,6 @@ impl Template {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for Template {
     fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        // this only changes options
         panic!("not meant to be called directly");
     }
 
@@ -404,7 +401,6 @@ impl NoTemplate {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for NoTemplate {
     fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        // this only changes options
         panic!("not meant to be called directly");
     }
 
@@ -441,7 +437,6 @@ impl MimicCase {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for MimicCase {
     fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        // this only changes options
         panic!("not meant to be called directly");
     }
 
@@ -478,7 +473,6 @@ impl NoMimicCase {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Replacement for NoMimicCase {
     fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        // this only changes options
         panic!("not meant to be called directly");
     }
 
