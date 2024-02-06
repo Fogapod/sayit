@@ -1,7 +1,5 @@
 (
     patterns: [
-        ("a", {"Lower": {"Original": ()}}),
-        ("VeryLongNonExistent12344343243244234", {"Lower": {"Original": ()}}),
-        ("you", {"Lower": {"Original": ()}}),
+        (r"\w+", {"Lower": {"Lower": {"Lower": {"Lower": {"Lower": {"Original": ()}}}}}}),
     ],
 )

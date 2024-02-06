@@ -1,27 +1,77 @@
 (
     patterns: [
+        // highly nested
         ("a", {"Any": [
-            {"Original": ()},
-            {"Literal": "B"},
-            {"Literal": "Flat"},
+            {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+            {"Any": [
+                {"Original": ()},
+            ]},
+            ]},
+            ]},
+            ]},
+            ]},
+            ]},
+            ]},
+            ]},
         ]}),
-        ("VeryLongNonExistent12344343243244234", {"Any": [{"Original": ()}]}),
-        ("you", {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-                {"Literal": "nestednormalizeme"},
-            ]},
-            ]},
-            ]},
-            ]},
-            ]},
-            ]},
-            ]},
+        // many items
+        ("o", {"Any": [
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
+            {"Any": [{"Original": ()}]},
         ]}),
     ],
 )

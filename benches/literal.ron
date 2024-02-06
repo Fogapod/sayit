@@ -1,7 +1,7 @@
 (
     patterns: [
-        ("a", {"Literal": "B"}),
-        ("VeryLongNonExistent12344343243244234", {"Literal": "wdwdffhskhfkshekfhKFE"}),
-        ("you", {"Literal": "normalizeme"}),
+        ("a", {"Literal": "A"}),
+        ("o", {"Literal": "short"}),
+        (r"\d+", {"Literal": "veryLongStringaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1234123412344rhrkghsghkgshal;ghaslfnkhsgkshgshgsjdgjkdngkjgh"}),
     ],
 )

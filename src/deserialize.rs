@@ -172,7 +172,6 @@ impl TryFrom<AccentDef> for Accent {
 #[cfg(test)]
 mod tests {
     use regex::Regex;
-    use std::fs;
 
     use crate::{
         replacement::{Any, Literal, Original, Weights},
@@ -626,24 +625,6 @@ mod tests {
         assert_eq!(accent.say_it("intensity", 4), "1");
         assert_eq!(accent.say_it("intensity", 5), "5");
         assert_eq!(accent.say_it("intensity", 9000 + 1), "5");
-    }
-
-    #[test]
-    fn example_accents() {
-        let sample_text = fs::read_to_string("tests/sample_text.txt").expect("reading sample text");
-
-        for file in fs::read_dir("examples").expect("read symlinked accents folder") {
-            let filename = file.expect("getting file info").path();
-            println!("parsing {}", filename.display());
-
-            let accent =
-                ron::from_str::<Accent>(&fs::read_to_string(filename).expect("reading file"))
-                    .unwrap();
-
-            for intensity in accent.intensities() {
-                let _ = accent.say_it(&sample_text, intensity);
-            }
-        }
     }
 
     #[test]

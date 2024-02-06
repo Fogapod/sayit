@@ -1,7 +1,13 @@
 (
     patterns: [
-        ("a", {"Concat": ({"Literal": "first"}, {"Original": ()})}),
-        ("VeryLongNonExistent12344343243244234", {"Concat": ({"Original": ()}, {"Literal": "first"})}),
-        ("you", {"Concat": ({"Literal": "left"}, {"Literal": "right"})}),
+        // use \w+ and \W+ to vary string lengths
+        (r"\w+", {"Concat": (
+            {"Original": ()},
+            {"Original": ()},
+        )}),
+        (r"\W+", {"Concat": (
+            {"Original": ()},
+            {"Original": ()},
+        )}),
     ],
 )

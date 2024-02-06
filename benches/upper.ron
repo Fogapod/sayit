@@ -1,7 +1,5 @@
 (
     patterns: [
-        ("a", {"Upper": {"Original": ()}}),
-        ("VeryLongNonExistent12344343243244234", {"Upper": {"Original": ()}}),
-        ("you", {"Upper": {"Original": ()}}),
+        (r"\w+", {"Upper": {"Upper": {"Upper": {"Upper": {"Upper": {"Original": ()}}}}}}),
     ],
 )

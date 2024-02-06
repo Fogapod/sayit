@@ -1,11 +1,10 @@
-use criterion::criterion_main;
-use criterion::{criterion_group, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use sayit::Accent;
 use std::fs;
 
 pub fn read_accent(filename: &str) -> Accent {
     let content = fs::read_to_string(filename).expect("reading accent definition");
-    ron::from_str::<Accent>(&content).expect("parsing accent")
+    ron::from_str::<Accent>(&content).expect(&format!("parsing accent {filename}"))
 }
 
 pub fn read_sample_file() -> String {
@@ -24,7 +23,6 @@ fn accents(c: &mut Criterion) {
     let lines = read_sample_file_lines();
 
     let mut g = c.benchmark_group("accents");
-    g.sample_size(2000);
 
     for name in [
         "original", "literal", "any", "weights", "upper", "lower", "concat",

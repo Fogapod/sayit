@@ -1,7 +1,7 @@
 (
     patterns: [
-        ("a", {"Original": ()}),
-        ("VeryLongNonExistent12344343243244234", {"Original": ()}),
-        ("you", {"Original": ()}),
+        // varying string lenghts
+        (r"\w+", {"Original": ()}),
+        (r"\W+", {"Original": ()}),
     ],
 )
