@@ -31,14 +31,14 @@ log = "0.4"
 # cli parsing
 clap = { version = "4.4", optional = true, features = ["derive"] }
 
-# deserialization for Replacement trait
+# deserialization for Tag trait
 serde = { version = "1", features = ["derive"], optional = true }
 typetag = { version = "0.2", optional = true }
 
 # format deserialization
 ron = { version = "0.8", optional = true }
 
-# clone stored Replacement trait objects
+# clone stored Tag trait objects
 dyn-clone = "1.0"
 
 [dev-dependencies]

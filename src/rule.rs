@@ -2,20 +2,19 @@ use std::borrow::Cow;
 
 use regex::{Captures, Regex};
 
-use crate::replacement::{Replacement, ReplacementOptions};
+use crate::tag::{Tag, TagOptions};
 
-/// Maps regex to replacement
+/// Maps regex to tag
 #[derive(Debug)]
 pub(crate) struct Rule {
     pub(crate) source: Regex,
-    pub(crate) replacement: Box<dyn Replacement>,
+    pub(crate) tag: Box<dyn Tag>,
 }
 
 impl Rule {
     pub(crate) fn apply<'input>(&self, text: &'input str) -> Cow<'input, str> {
         self.source.replace_all(text, |caps: &Captures| {
-            self.replacement
-                .apply_options(caps, text, ReplacementOptions::default())
+            self.tag.apply_options(caps, text, TagOptions::default())
         })
     }
 }

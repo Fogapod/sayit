@@ -1,15 +1,16 @@
-use regex::Regex;
-
 #[cfg(feature = "deserialize")]
 use crate::deserialize::IntensityBodyDef;
-use crate::replacement::Replacement;
+
+use crate::tag::Tag;
+
+use regex::Regex;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(from = "IntensityBodyDef"))]
 pub(crate) struct IntensityBody {
-    pub(crate) words: Vec<(Regex, Box<dyn Replacement>)>,
-    pub(crate) patterns: Vec<(Regex, Box<dyn Replacement>)>,
+    pub(crate) words: Vec<(Regex, Box<dyn Tag>)>,
+    pub(crate) patterns: Vec<(Regex, Box<dyn Tag>)>,
 }
 
 /// Either replaces everything from previous intensity using `Replace` or adds new words and

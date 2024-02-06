@@ -1,11 +1,9 @@
 #[cfg(feature = "deserialize")]
 use crate::deserialize::AccentDef;
-use crate::intensity::Intensity;
-use crate::replacement::Replacement;
-use crate::rule::Rule;
 
-use std::borrow::Cow;
-use std::collections::BTreeMap;
+use crate::{intensity::Intensity, rule::Rule, tag::Tag};
+
+use std::{borrow::Cow, collections::BTreeMap};
 
 use regex::Regex;
 
@@ -22,16 +20,13 @@ pub struct Accent {
 }
 
 impl Accent {
-    fn merge_rules(
-        first: &[(Regex, Box<dyn Replacement>)],
-        second: &[(Regex, Box<dyn Replacement>)],
-    ) -> Vec<Rule> {
+    fn merge_rules(first: &[(Regex, Box<dyn Tag>)], second: &[(Regex, Box<dyn Tag>)]) -> Vec<Rule> {
         first
             .iter()
             .chain(second)
-            .map(|(regex, replacement)| Rule {
+            .map(|(regex, tag)| Rule {
                 source: regex.clone(),
-                replacement: replacement.clone(),
+                tag: tag.clone(),
             })
             .collect()
     }
@@ -42,10 +37,10 @@ impl Accent {
     //       another change? `"*": Lower(Original); ...; Lower(Original)` this might be a hacky way
     //       to fix something in complex accents
     fn dedup_rules(
-        collection: Vec<(Regex, Box<dyn Replacement>)>,
+        collection: Vec<(Regex, Box<dyn Tag>)>,
         pretty_name: &str,
         warn_on_duplicates: bool,
-    ) -> Vec<(Regex, Box<dyn Replacement>)> {
+    ) -> Vec<(Regex, Box<dyn Tag>)> {
         let mut filtered = vec![];
         let mut seen = BTreeMap::<String, usize>::new();
 
@@ -73,8 +68,8 @@ impl Accent {
     }
 
     pub(crate) fn new(
-        mut words: Vec<(Regex, Box<dyn Replacement>)>,
-        mut patterns: Vec<(Regex, Box<dyn Replacement>)>,
+        mut words: Vec<(Regex, Box<dyn Tag>)>,
+        mut patterns: Vec<(Regex, Box<dyn Tag>)>,
         intensities_def: BTreeMap<u64, Intensity>,
     ) -> Self {
         words = Self::dedup_rules(words, "words", true);
@@ -156,7 +151,7 @@ mod tests {
     use regex::Regex;
     use std::collections::BTreeMap;
 
-    use crate::replacement::{Literal, NoMimicCase};
+    use crate::tag::{Literal, NoMimicCase};
     use crate::Accent;
 
     #[test]

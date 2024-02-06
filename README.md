@@ -10,7 +10,7 @@ Originally based on python [pink-accents](https://git.based.computer/fogapod/pin
 ## Overview
 
 Provides a way to define a set of rules for replacing text in string. Each rule consists of
-regex pattern and Replacement trait object. The original use case is to simulate
+regex pattern and Tag trait object. The original use case is to simulate
 mispronounciations in speech accents via text.
 
 See docs.rs documentation for API overview.
@@ -21,14 +21,14 @@ Full reference:
 
 ```ron
 (
-    // pairs of (regex, replacement)
+    // pairs of (regex, tag)
     // this is same as `patterns` except that each regex is surrounded with \b to avoid copypasting.
     // `words` are applied before `patterns`
     words: [
         // this is the simplest rule to replace all "windows" words (separated by regex \b)
         // occurences with "linux", case sensitive
         ("windows", {"Literal": "linux"}),
-        // this replaces word "OS" with one of replacements, with equal probability
+        // this replaces word "OS" with one of tags, with equal probability
         ("os", {"Any": [
             {"Literal": "Ubuntu"},
             {"Literal": "Arch"},
@@ -39,7 +39,7 @@ Full reference:
         (r"(a)(?P<b_group>b)", {"Literal": "$b_group$a"}),
     ],
 
-    // pairs of (regex, replacement)
+    // pairs of (regex, tag)
     // this is same as `words` except these are used as is, without \b
     patterns: [
         // inserts one of the honks. first value of `Weights` is relative weight. higher is better
@@ -72,7 +72,7 @@ Full reference:
 
             // extend patterns, adding 1 more rule
             patterns: [
-                // replacements can be nested arbitrarily
+                // tags can be nested arbitrarily
                 ("[A-Z]", {"Weights": [
                     // 50% to replace capital letter with one of the Es
                     (1, {"Any": [

@@ -1,6 +1,6 @@
 use crate::accent::Accent;
 use crate::intensity::{Intensity, IntensityBody};
-use crate::replacement::{Any, AnyError, Replacement, Weights, WeightsError};
+use crate::tag::{Any, AnyError, Tag, Weights, WeightsError};
 use crate::utils::LiteralString;
 
 use regex::Regex;
@@ -23,7 +23,7 @@ impl<'de> Deserialize<'de> for Any {
     where
         D: Deserializer<'de>,
     {
-        let items: Vec<Box<dyn Replacement>> = Deserialize::deserialize(deserializer)?;
+        let items: Vec<Box<dyn Tag>> = Deserialize::deserialize(deserializer)?;
 
         Self::new(items).map_err(|err| match err {
             AnyError::ZeroItems => de::Error::invalid_length(0, &"at least one element"),
@@ -36,7 +36,7 @@ impl<'de> Deserialize<'de> for Weights {
     where
         D: Deserializer<'de>,
     {
-        let items: Vec<(u64, Box<dyn Replacement>)> = Deserialize::deserialize(deserializer)?;
+        let items: Vec<(u64, Box<dyn Tag>)> = Deserialize::deserialize(deserializer)?;
 
         Self::new(items).map_err(|err| match err {
             WeightsError::ZeroItems => de::Error::invalid_length(0, &"at least one element"),
@@ -112,9 +112,9 @@ impl TryFrom<String> for PatternRegex {
 #[serde(deny_unknown_fields)]
 pub(crate) struct IntensityBodyDef {
     #[serde(default)]
-    words: Vec<(WordRegex, Box<dyn Replacement>)>,
+    words: Vec<(WordRegex, Box<dyn Tag>)>,
     #[serde(default)]
-    patterns: Vec<(PatternRegex, Box<dyn Replacement>)>,
+    patterns: Vec<(PatternRegex, Box<dyn Tag>)>,
 }
 
 impl From<IntensityBodyDef> for IntensityBody {
@@ -123,12 +123,12 @@ impl From<IntensityBodyDef> for IntensityBody {
             words: intensity_def
                 .words
                 .into_iter()
-                .map(|(regex, replacement)| (regex.0, replacement))
+                .map(|(regex, tag)| (regex.0, tag))
                 .collect(),
             patterns: intensity_def
                 .patterns
                 .into_iter()
-                .map(|(regex, replacement)| (regex.0, replacement))
+                .map(|(regex, tag)| (regex.0, tag))
                 .collect(),
         }
     }
@@ -138,9 +138,9 @@ impl From<IntensityBodyDef> for IntensityBody {
 #[serde(deny_unknown_fields)]
 pub(crate) struct AccentDef {
     #[serde(default)]
-    words: Vec<(WordRegex, Box<dyn Replacement>)>,
+    words: Vec<(WordRegex, Box<dyn Tag>)>,
     #[serde(default)]
-    patterns: Vec<(PatternRegex, Box<dyn Replacement>)>,
+    patterns: Vec<(PatternRegex, Box<dyn Tag>)>,
     #[serde(default)]
     intensities: BTreeMap<u64, Intensity>,
 }
@@ -157,12 +157,12 @@ impl TryFrom<AccentDef> for Accent {
             accent_def
                 .words
                 .into_iter()
-                .map(|(regex, replacement)| (regex.0, replacement))
+                .map(|(regex, tag)| (regex.0, tag))
                 .collect(),
             accent_def
                 .patterns
                 .into_iter()
-                .map(|(regex, replacement)| (regex.0, replacement))
+                .map(|(regex, tag)| (regex.0, tag))
                 .collect(),
             accent_def.intensities,
         ))
@@ -174,8 +174,8 @@ mod tests {
     use regex::Regex;
 
     use crate::{
-        replacement::{Any, Literal, Original, Weights},
         rule::Rule,
+        tag::{Any, Literal, Original, Tag, Weights},
         Accent,
     };
 
@@ -217,11 +217,11 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)1").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                     ],
                 ),
@@ -230,19 +230,19 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bb\b").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)1").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)2").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                     ],
                 ),
@@ -281,11 +281,11 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)1").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                     ],
                 ),
@@ -294,11 +294,11 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\bb\b").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                         Rule {
                             source: Regex::new("(?m)2").unwrap(),
-                            replacement: Original::new_boxed(),
+                            tag: Original::new_boxed(),
                         },
                     ],
                 ),
@@ -309,7 +309,7 @@ mod tests {
     }
 
     #[test]
-    fn ron_invalid_replacement_any() {
+    fn ron_invalid_tag_any() {
         assert!(ron::from_str::<Accent>(
             r#"
 (
@@ -327,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    fn ron_invalid_replacement_weighted() {
+    fn ron_invalid_tag_weighted() {
         assert!(ron::from_str::<Accent>(
             r#"
 (
@@ -445,25 +445,23 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\btest\b").unwrap(),
-                            replacement: Literal::new_boxed(
-                                "Testing in progress; Please ignore ...",
-                            ),
+                            tag: Literal::new_boxed("Testing in progress; Please ignore ..."),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bbadword\b").unwrap(),
-                            replacement: Literal::new_boxed(""),
+                            tag: Literal::new_boxed(""),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            replacement: Literal::new_boxed("0"),
+                            tag: Literal::new_boxed("0"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)[a-z]").unwrap(),
-                            replacement: Literal::new_boxed("e"),
+                            tag: Literal::new_boxed("e"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)[A-Z]").unwrap(),
-                            replacement: Weights::new_boxed(vec![
+                            tag: Weights::new_boxed(vec![
                                 (5, Literal::new_boxed("E")),
                                 (1, Literal::new_boxed("Ē")),
                                 (1, Literal::new_boxed("Ê")),
@@ -475,7 +473,7 @@ mod tests {
                         },
                         Rule {
                             source: Regex::new(r"(?m)[0-9]").unwrap(),
-                            replacement: Any::new_boxed(vec![Weights::new_boxed(vec![(
+                            tag: Any::new_boxed(vec![Weights::new_boxed(vec![(
                                 1,
                                 Any::new_boxed(vec![
                                     Literal::new_boxed("6"),
@@ -494,23 +492,23 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            replacement: Literal::new_boxed("words"),
+                            tag: Literal::new_boxed("words"),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            replacement: Literal::new_boxed("1"),
+                            tag: Literal::new_boxed("1"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            replacement: Literal::new_boxed("Linux"),
+                            tag: Literal::new_boxed("Linux"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            replacement: Literal::new_boxed("multiple A's"),
+                            tag: Literal::new_boxed("multiple A's"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            replacement: Literal::new_boxed("start"),
+                            tag: Literal::new_boxed("start"),
                         },
                     ],
                 ),
@@ -519,35 +517,35 @@ mod tests {
                     vec![
                         Rule {
                             source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            replacement: Literal::new_boxed("words"),
+                            tag: Literal::new_boxed("words"),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            replacement: Literal::new_boxed("2"),
+                            tag: Literal::new_boxed("2"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            replacement: Literal::new_boxed("Linux"),
+                            tag: Literal::new_boxed("Linux"),
                         },
                         Rule {
                             source: Regex::new(r"(?mi)\badded\b").unwrap(),
-                            replacement: Literal::new_boxed("words"),
+                            tag: Literal::new_boxed("words"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)a+").unwrap(),
-                            replacement: Literal::new_boxed("multiple A's"),
+                            tag: Literal::new_boxed("multiple A's"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)^").unwrap(),
-                            replacement: Literal::new_boxed("start"),
+                            tag: Literal::new_boxed("start"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)b+").unwrap(),
-                            replacement: Literal::new_boxed("multiple B's"),
+                            tag: Literal::new_boxed("multiple B's"),
                         },
                         Rule {
                             source: Regex::new(r"(?m)$").unwrap(),
-                            replacement: Literal::new_boxed("end"),
+                            tag: Literal::new_boxed("end"),
                         },
                     ],
                 ),
@@ -588,11 +586,11 @@ mod tests {
                 vec![
                     Rule {
                         source: Regex::new(r"(?mi)\bdupew\b").unwrap(),
-                        replacement: Literal::new_boxed("2"),
+                        tag: Literal::new_boxed("2"),
                     },
                     Rule {
                         source: Regex::new(r"(?mi)dupep").unwrap(),
-                        replacement: Literal::new_boxed("2"),
+                        tag: Literal::new_boxed("2"),
                     },
                 ],
             )],
@@ -628,15 +626,13 @@ mod tests {
     }
 
     #[test]
-    fn custom_replacement_works() {
-        use crate::replacement::Replacement;
-
+    fn custom_tag_works() {
         /// Increments matched number by given amount. Does nothing for overflow or bad match
         #[derive(Clone, Debug, serde::Deserialize)]
         pub struct Increment(u32);
 
         #[typetag::deserialize]
-        impl Replacement for Increment {
+        impl Tag for Increment {
             fn generate<'a>(
                 &self,
                 caps: &regex::Captures,

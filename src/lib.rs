@@ -3,58 +3,58 @@
 //! # Table of contents
 //! * [Description](#description)
 //! * [Accent](#accent)
-//! * [Replacement trait](#replacement-trait)
-//! * [Implementing Replacement trait](#implementing-replacement-trait)
+//! * [Tag trait](#tag-trait)
+//! * [Implementing Tag trait](#implementing-tag-trait)
 //! * [CLI tool](#cli-tool)
 //! * [Feature flags](#feature-flags)
 //!
 //! # Description
 //!
 //! Provides a way to define a set of rules for replacing text in string. Each rule consists of
-//! regex pattern and Replacement trait object. The original use case is to simulate
+//! regex pattern and Tag trait object. The original use case is to simulate
 //! mispronounciations in speech accents via text.
 //!
 //! # Accent
 //!
-//! [`Accent`] is a collection of rules that define speech accent. Rule is a pair of regex and
-//! replacement. Deserialization is currently the only way to create it.
+//! [`Accent`] is a collection of rules that define speech accent. Rule is a pair of regex and tag.
+//! Deserialization is currently the only way to create it.
 //!
 //! This library defines a rule layout that should make it easy to define speech accent. It does
 //! the following:
 //!
-//! * defines `patterns` - a list of pairs regex -> replacement
+//! * defines `patterns` - a list of pairs regex -> tag
 //! * defines `words` - same as `patterns` except regexes are automatically surrounded by `\b`
 //! * allows adding or replacing existing rules for higher intensities of accent
 //! * executes rules for matching severity group sequentially from top to bottom
 //!
 //! See `examples` folder, specifically `example.ron` for full reference.
 //!
-//! # Replacement trait
+//! # Tag trait
 //!
-//! [`Replacement`] is a core of this library. It is an extendable trait. After implementing it you
+//! [`Tag`] is a core of this library. It is an extendable trait. After implementing it you
 //! can can parse it along default implementations and other ones.
 //!
 //! Default replacments are:
 //!
 //! * [`Original`] does not replace (leaves original match as is)
 //! * [`Literal`] puts given string
-//! * [`Any`] selects random inner replacement with equal weights
-//! * [`Weights`] selects random inner replacement based on relative weights
+//! * [`Any`] selects random inner tag with equal weights
+//! * [`Weights`] selects random inner tag based on relative weights
 //! * [`Upper`] converts inner result to uppercase
 //! * [`Lower`] converts inner result to lowercase
 //! * [`Template`] enables templating for inner type
 //! * [`NoTemplate`] disables templating for inner type
 //! * [`MimicCase`] enables case mimicking for inner type
 //! * [`NoMimicCase`] disables case mimicking for inner type
-//! * [`Concat`] runs left and right inner branches and adds them together
+//! * [`Concat`] runs left and right inner tags and adds them together
 //!
-//! # Implementing Replacement trait
+//! # Implementing Tag trait
 //!
 //! `StringCase` either uppercases or lowercases match depending of given boolean:
 //!
 //! ```rust
 //! use sayit::{
-//!     replacement::Replacement,
+//!     tag::Tag,
 //!     Accent,
 //! };
 //!
@@ -64,7 +64,7 @@
 //!
 //! // `typetag` is only required with `deserialize` crate feature
 //! #[typetag::deserialize]
-//! impl Replacement for StringCase {
+//! impl Tag for StringCase {
 //!     // 'a is source text lifetime
 //!     fn generate<'a>(
 //!         &self,
@@ -109,21 +109,21 @@
 //!
 //! Name | Description | Default?
 //! ---|---|---
-//! `deserialize` | enables deserialization for [`Replacement`] trait | yes
+//! `deserialize` | enables deserialization for [`Tag`] trait | yes
 //! `cli` | required to run CLI tool | no
 //!
-//! [`Replacement`]: crate::replacement::Replacement
-//! [`Original`]: crate::replacement::Original
-//! [`Literal`]: crate::replacement::Literal
-//! [`Any`]: crate::replacement::Any
-//! [`Weights`]: crate::replacement::Weights
-//! [`Upper`]: crate::replacement::Upper
-//! [`Lower`]: crate::replacement::Lower
-//! [`Template`]: crate::replacement::Template
-//! [`NoTemplate`]: crate::replacement::NoTemplate
-//! [`MimicCase`]: crate::replacement::MimicCase
-//! [`NoMimicCase`]: crate::replacement::NoMimicCase
-//! [`Concat`]: crate::replacement::Concat
+//! [`Tag`]: crate::tag::Tag
+//! [`Original`]: crate::tag::Original
+//! [`Literal`]: crate::tag::Literal
+//! [`Any`]: crate::tag::Any
+//! [`Weights`]: crate::tag::Weights
+//! [`Upper`]: crate::tag::Upper
+//! [`Lower`]: crate::tag::Lower
+//! [`Template`]: crate::tag::Template
+//! [`NoTemplate`]: crate::tag::NoTemplate
+//! [`MimicCase`]: crate::tag::MimicCase
+//! [`NoMimicCase`]: crate::tag::NoMimicCase
+//! [`Concat`]: crate::tag::Concat
 
 mod accent;
 mod intensity;
@@ -136,5 +136,5 @@ pub mod utils;
 #[cfg(feature = "deserialize")]
 mod deserialize;
 
-pub mod replacement;
+pub mod tag;
 pub use accent::Accent;
