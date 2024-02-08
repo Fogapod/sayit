@@ -7,13 +7,26 @@ use rand::seq::SliceRandom;
 use regex::Captures;
 
 /// Alters behaviour of some tags
-#[derive(Clone, Default)]
+#[derive(Default, Clone)]
 pub struct TagOptions {
     template: Option<bool>,
     mimic_case: Option<bool>,
 }
 
-clone_trait_object!(Tag);
+impl TagOptions {
+    /// Default expensive case mimicking implementation
+    fn mimic_case(target: &str, source: &str) -> String {
+        let s = LiteralString::from(target);
+        s.mimic_ascii_case(source)
+    }
+
+    /// Default templating implementation using [`regex::Captures::expand`]
+    fn template(template: &str, caps: &Captures) -> String {
+        let mut dst = String::new();
+        caps.expand(template, &mut dst);
+        dst
+    }
+}
 
 /// Receives match and provides replacement
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
@@ -24,42 +37,32 @@ pub trait Tag: DynClone + Debug {
     /// input is reference to full input
     fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str>;
 
-    /// Runs after [`generate`][Self::generate] and applies additional operations set by options
+    /// Takes [`generate`][Self::generate] output and applies additional operations set by options
     ///
-    /// By default it does not perform extra work
+    /// Redefine this if you want to mess with options for inner tags or have some big optimization
+    /// for options
     fn apply_options<'a>(
         &self,
         caps: &Captures,
         input: &'a str,
         options: TagOptions,
     ) -> Cow<'a, str> {
-        let mut output = self.generate(caps, input);
+        let template = options.template.unwrap_or(false);
+        let mimic_case = options.mimic_case.unwrap_or(false);
 
-        if options.template.unwrap_or(false) {
-            output = self.template(&output, caps).into()
+        let generated = self.generate(caps, input);
+
+        match (template, mimic_case) {
+            (false, false) => generated,
+            (true, false) => TagOptions::template(&generated, caps).into(),
+            (false, true) => {
+                TagOptions::mimic_case(&generated, self.current_match(caps, input)).into()
+            }
+            (true, true) => {
+                let templated = TagOptions::template(&generated, caps);
+                TagOptions::mimic_case(&templated, self.current_match(caps, input)).into()
+            }
         }
-
-        if options.mimic_case.unwrap_or(false) {
-            output = self
-                .mimic_case(&output, self.current_match(caps, input))
-                .into();
-        }
-
-        output
-    }
-
-    /// Default templating implementation using [`regex::Captures::expand`]
-    fn template(&self, template: &str, caps: &Captures) -> String {
-        let mut dst = String::new();
-        caps.expand(template, &mut dst);
-        dst
-    }
-
-    /// Default expensive case mimicking implementation
-    fn mimic_case(&self, target: &str, source: &str) -> String {
-        // FIXME: initializing LiteralString is super expensive!!!!
-        let s = LiteralString::from(target);
-        s.mimic_ascii_case(source)
     }
 
     /// Returns full match (group 0)
@@ -67,6 +70,8 @@ pub trait Tag: DynClone + Debug {
         &input[caps.get(0).expect("match 0 is always present").range()]
     }
 }
+
+clone_trait_object!(Tag);
 
 /// Same as [`Literal`] with `"$0"` argument: returns entire match.
 ///
@@ -116,7 +121,7 @@ impl Literal {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Literal {
     fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        panic!("not meant to be called directly");
+        self.0.body.clone().into()
     }
 
     fn apply_options<'a>(
@@ -125,30 +130,21 @@ impl Tag for Literal {
         input: &'a str,
         options: TagOptions,
     ) -> Cow<'a, str> {
-        // ignore template flag if no template detected
         let template = options.template.unwrap_or(self.0.has_template);
         let mimic_case = options.mimic_case.unwrap_or(true);
 
-        if !(template || mimic_case) {
-            return self.0.body.clone().into();
-        }
-
-        if template && !mimic_case {
-            return self.template(&self.0.body, caps).into();
-        }
-
-        if !template && mimic_case {
-            return self
+        match (template, mimic_case) {
+            (false, false) => self.generate(caps, input),
+            (true, false) => TagOptions::template(&self.0.body, caps).into(),
+            (false, true) => self
                 .0
-                .mimic_ascii_case(&input[caps.get(0).expect("match 0 is always present").range()])
-                .into();
+                .mimic_ascii_case(self.current_match(caps, input))
+                .into(),
+            (true, true) => {
+                let templated = TagOptions::template(&self.0.body, caps);
+                TagOptions::mimic_case(&templated, self.current_match(caps, input)).into()
+            }
         }
-
-        // expensive path because we cannot use precomputed LiteralString, new one must be created
-        // after templating
-        let templated = self.template(&self.0.body, caps);
-        self.mimic_case(&templated, self.current_match(caps, input))
-            .into()
     }
 }
 
@@ -179,23 +175,13 @@ impl Any {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Any {
-    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        // does not transform input so does not need to implement this
-        panic!("not meant to be called directly");
-    }
-
-    fn apply_options<'a>(
-        &self,
-        caps: &Captures,
-        input: &'a str,
-        options: TagOptions,
-    ) -> Cow<'a, str> {
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
         let mut rng = rand::thread_rng();
 
         self.0
             .choose(&mut rng)
             .expect("empty Any")
-            .apply_options(caps, input, options)
+            .generate(caps, input)
     }
 }
 
@@ -231,23 +217,14 @@ impl Weights {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Weights {
-    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        panic!("not meant to be called directly");
-    }
-
-    fn apply_options<'a>(
-        &self,
-        caps: &Captures,
-        input: &'a str,
-        options: TagOptions,
-    ) -> Cow<'a, str> {
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
         let mut rng = rand::thread_rng();
 
         self.0
             .choose_weighted(&mut rng, |item| item.0)
             .expect("empty Weights")
             .1
-            .apply_options(caps, input, options)
+            .generate(caps, input)
     }
 }
 
@@ -272,8 +249,8 @@ impl Upper {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Upper {
-    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        panic!("not meant to be called directly");
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
+        self.0.generate(caps, input)
     }
 
     fn apply_options<'a>(
@@ -286,13 +263,13 @@ impl Tag for Upper {
         // do not mimic case inside this because it will be overwritten
         let _ = options.mimic_case.insert(false);
 
-        let mut replaced = self.0.apply_options(caps, input, options);
+        let mut generated = self.0.apply_options(caps, input, options);
 
         if template {
-            replaced = self.template(&replaced, caps).into();
+            generated = TagOptions::template(&generated, caps).into();
         }
 
-        replaced.to_uppercase().into()
+        generated.to_uppercase().into()
     }
 }
 
@@ -317,8 +294,8 @@ impl Lower {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Lower {
-    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        panic!("not meant to be called directly");
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
+        self.0.generate(caps, input)
     }
 
     fn apply_options<'a>(
@@ -331,13 +308,13 @@ impl Tag for Lower {
         // do not mimic case inside this because it will be overwritten
         let _ = options.mimic_case.insert(false);
 
-        let mut replaced = self.0.apply_options(caps, input, options);
+        let mut generated = self.0.apply_options(caps, input, options);
 
         if template {
-            replaced = self.template(&replaced, caps).into();
+            generated = TagOptions::template(&generated, caps).into();
         }
 
-        replaced.to_lowercase().into()
+        generated.to_lowercase().into()
     }
 }
 
@@ -362,8 +339,8 @@ impl Template {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Template {
-    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        panic!("not meant to be called directly");
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
+        self.0.generate(caps, input)
     }
 
     fn apply_options<'a>(
@@ -372,7 +349,8 @@ impl Tag for Template {
         input: &'a str,
         mut options: TagOptions,
     ) -> Cow<'a, str> {
-        let _ = options.template.insert(true);
+        options.template.get_or_insert(true);
+
         self.0.apply_options(caps, input, options)
     }
 }
@@ -398,8 +376,8 @@ impl NoTemplate {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for NoTemplate {
-    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        panic!("not meant to be called directly");
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
+        self.0.generate(caps, input)
     }
 
     fn apply_options<'a>(
@@ -408,7 +386,8 @@ impl Tag for NoTemplate {
         input: &'a str,
         mut options: TagOptions,
     ) -> Cow<'a, str> {
-        let _ = options.template.insert(false);
+        options.template.get_or_insert(false);
+
         self.0.apply_options(caps, input, options)
     }
 }
@@ -434,8 +413,8 @@ impl MimicCase {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for MimicCase {
-    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        panic!("not meant to be called directly");
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
+        self.0.generate(caps, input)
     }
 
     fn apply_options<'a>(
@@ -444,7 +423,8 @@ impl Tag for MimicCase {
         input: &'a str,
         mut options: TagOptions,
     ) -> Cow<'a, str> {
-        let _ = options.mimic_case.insert(true);
+        options.mimic_case.get_or_insert(true);
+
         self.0.apply_options(caps, input, options)
     }
 }
@@ -470,8 +450,8 @@ impl NoMimicCase {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for NoMimicCase {
-    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        panic!("not meant to be called directly");
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
+        self.0.generate(caps, input)
     }
 
     fn apply_options<'a>(
@@ -480,7 +460,8 @@ impl Tag for NoMimicCase {
         input: &'a str,
         mut options: TagOptions,
     ) -> Cow<'a, str> {
-        let _ = options.mimic_case.insert(false);
+        options.mimic_case.get_or_insert(false);
+
         self.0.apply_options(caps, input, options)
     }
 }
@@ -506,33 +487,8 @@ impl Concat {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Concat {
-    fn generate<'a>(&self, _: &Captures, _: &'a str) -> Cow<'a, str> {
-        panic!("not meant to be called directly");
-    }
-
-    fn apply_options<'a>(
-        &self,
-        caps: &Captures,
-        input: &'a str,
-        options: TagOptions,
-    ) -> Cow<'a, str> {
-        let template = options.template.unwrap_or(false);
-        let mimic_case = options.mimic_case.unwrap_or(false);
-
-        let mut output = self.0 .0.apply_options(caps, input, options.clone())
-            + self.0 .1.apply_options(caps, input, options);
-
-        if template {
-            output = self.template(&output, caps).into()
-        }
-
-        if mimic_case {
-            output = self
-                .mimic_case(&output, self.current_match(caps, input))
-                .into();
-        }
-
-        output
+    fn generate<'a>(&self, caps: &Captures, input: &'a str) -> Cow<'a, str> {
+        self.0 .0.generate(caps, input) + self.0 .1.generate(caps, input)
     }
 }
 
@@ -591,23 +547,6 @@ mod tests {
     }
 
     #[test]
-    fn constructed_not_templates_by_default() {
-        let tag = Concat::new(Literal::new_boxed("$"), Literal::new_boxed("0"));
-
-        assert_eq!(apply(&tag, "FOO"), "$0");
-    }
-
-    #[test]
-    fn constructed_not_mimics_by_default() {
-        let tag = Concat::new(
-            NoMimicCase::new_boxed(Literal::new_boxed("b")),
-            NoMimicCase::new_boxed(Literal::new_boxed("ar")),
-        );
-
-        assert_eq!(apply(&tag, "FOO"), "bar");
-    }
-
-    #[test]
     fn any() {
         let tag = Any::new(vec![Literal::new_boxed("bar"), Literal::new_boxed("baz")]).unwrap();
 
@@ -658,10 +597,29 @@ mod tests {
     }
 
     #[test]
+    fn concatenated_not_templates_by_default() {
+        let tag = Concat::new_boxed(Literal::new_boxed("$"), Literal::new_boxed("0"));
+
+        assert_eq!(apply(tag.as_ref(), "FOO"), "$0");
+        assert_eq!(apply(&Template::new(tag), "FOO"), "FOO");
+    }
+
+    #[test]
+    fn concatenated_not_mimics_by_default() {
+        let tag = Concat::new_boxed(
+            NoMimicCase::new_boxed(Literal::new_boxed("b")),
+            NoMimicCase::new_boxed(Literal::new_boxed("ar")),
+        );
+
+        assert_eq!(apply(tag.as_ref(), "FOO"), "bar");
+        assert_eq!(apply(&MimicCase::new(tag), "FOO"), "BAR");
+    }
+
+    #[test]
     fn template() {
         let tag = NoTemplate::new(Template::new_boxed(Literal::new_boxed("$0")));
 
-        assert_eq!(apply(&tag, "template"), "template");
+        assert_eq!(apply(&tag, "template"), "$0");
 
         let tag = Template::new(Concat::new_boxed(
             Literal::new_boxed("$"),
@@ -681,7 +639,7 @@ mod tests {
     fn mimic_case() {
         let tag = NoMimicCase::new(MimicCase::new_boxed(Literal::new_boxed("bar")));
 
-        assert_eq!(apply(&tag, "FOO"), "BAR");
+        assert_eq!(apply(&tag, "FOO"), "bar");
 
         let tag = MimicCase::new(Concat::new_boxed(
             Literal::new_boxed("b"),
@@ -695,6 +653,26 @@ mod tests {
         let tag = NoMimicCase::new(Literal::new_boxed("bar"));
 
         assert_eq!(apply(&tag, "FOO"), "bar");
+    }
+
+    #[test]
+    fn mimic_case_propagates_through_everything() {
+        let tag = MimicCase::new(NoMimicCase::new_boxed(Concat::new_boxed(
+            Any::new_boxed(vec![Literal::new_boxed("bar")]).unwrap(),
+            Weights::new_boxed(vec![(1, Literal::new_boxed("test"))]).unwrap(),
+        )));
+
+        assert_eq!(apply(&tag, "FOO"), "BARTEST");
+    }
+
+    #[test]
+    fn template_propagates_through_everything() {
+        let tag = NoTemplate::new(Template::new_boxed(Concat::new_boxed(
+            Any::new_boxed(vec![Literal::new_boxed("$0")]).unwrap(),
+            Weights::new_boxed(vec![(1, Literal::new_boxed("$0"))]).unwrap(),
+        )));
+
+        assert_eq!(apply(&tag, "1"), "$0$0");
     }
 
     #[test]

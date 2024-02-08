@@ -3,6 +3,8 @@ use std::sync::OnceLock;
 use regex::Regex;
 
 /// Wrapper around string, precomputing some metadata to speed up operations
+///
+/// NOTE: this is very expensive to initialyze
 #[doc(hidden)] // pub for bench
 #[derive(Debug, PartialEq, Clone)]
 pub struct LiteralString {
