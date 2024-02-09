@@ -75,10 +75,7 @@ impl LiteralString {
         }
 
         // no constraints if source was all lowercase
-        if source
-            .chars()
-            .all(|c| !c.is_ascii() || c.is_ascii_lowercase())
-        {
+        if source.chars().all(|c| c.is_ascii_lowercase()) || !source.is_ascii() {
             return self.body.clone();
         }
 

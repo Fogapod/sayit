@@ -119,8 +119,6 @@ impl Accent {
 
     /// Walks rules for given intensity from top to bottom and applies them
     pub fn say_it<'a>(&self, text: &'a str, intensity: u64) -> Cow<'a, str> {
-        // TODO: binary search? probably now worth
-        //
         // Go from the end and pick first intensity that is less or eaual to requested. This is
         // guaranteed to return something because base intensity 0 is always present at the bottom
         // and 0 <= x is true for any u64
@@ -151,8 +149,11 @@ mod tests {
     use regex::Regex;
     use std::collections::BTreeMap;
 
-    use crate::tag::{Literal, NoMimicCase};
-    use crate::Accent;
+    use crate::{
+        intensity::{Intensity, IntensityBody},
+        tag::{Literal, NoMimicCase},
+        Accent,
+    };
 
     #[test]
     fn e() {
@@ -161,16 +162,45 @@ mod tests {
             vec![
                 (
                     Regex::new(r"(?-i)[a-z]").unwrap(),
-                    Box::new(NoMimicCase::new(Box::new(Literal::new("e")))),
+                    NoMimicCase::new_boxed(Literal::new_boxed("e")),
                 ),
                 (
                     Regex::new(r"(?-i)[A-Z]").unwrap(),
-                    Box::new(NoMimicCase::new(Box::new(Literal::new("E")))),
+                    NoMimicCase::new_boxed(Literal::new_boxed("E")),
                 ),
             ],
             BTreeMap::new(),
         );
 
         assert_eq!(e.say_it("Hello World!", 0), "Eeeee Eeeee!");
+    }
+
+    #[test]
+    fn conflicting_pattern_in_same_intensity_is_replaced_and_warns() {
+        let mut intensities = BTreeMap::new();
+        intensities.insert(
+            1,
+            Intensity::Replace(IntensityBody {
+                words: vec![],
+                patterns: vec![
+                    // second one overwrites first in intensity 1
+                    (Regex::new("b").unwrap(), Literal::new_boxed("1")),
+                    (Regex::new("b").unwrap(), Literal::new_boxed("2")),
+                ],
+            }),
+        );
+
+        let e = Accent::new(
+            vec![],
+            vec![
+                // second one overwrites first in intensity 0
+                (Regex::new("a").unwrap(), Literal::new_boxed("b")),
+                (Regex::new("a").unwrap(), Literal::new_boxed("c")),
+            ],
+            intensities,
+        );
+
+        assert_eq!(e.say_it("abab", 0), "cbcb");
+        assert_eq!(e.say_it("abab", 1), "a2a2");
     }
 }

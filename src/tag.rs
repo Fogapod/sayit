@@ -7,7 +7,7 @@ use rand::seq::SliceRandom;
 use regex::Captures;
 
 /// Alters behaviour of some tags
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct TagOptions {
     template: Option<bool>,
     mimic_case: Option<bool>,
@@ -76,10 +76,11 @@ clone_trait_object!(Tag);
 /// Same as [`Literal`] with `"$0"` argument: returns entire match.
 ///
 /// Does not act as template by default unlike [`Literal`]
-#[derive(Clone, Debug, Default)] // i dont know why clippy DEMANDS default here. its nuts
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 pub struct Original;
 
+#[allow(clippy::new_without_default)]
 impl Original {
     pub fn new() -> Self {
         Self {}
@@ -571,7 +572,8 @@ mod tests {
 
     #[test]
     fn upper() {
-        let tag = Upper::new(Original::new_boxed());
+        // double wrapped for coverage
+        let tag = Upper::new(Upper::new_boxed(Original::new_boxed()));
 
         assert_eq!(apply(&tag, "lowercase"), "LOWERCASE");
         assert_eq!(apply(&tag, "UPPERCASE"), "UPPERCASE");
@@ -581,7 +583,8 @@ mod tests {
 
     #[test]
     fn lower() {
-        let tag = Lower::new(Original::new_boxed());
+        // double wrapped for coverage
+        let tag = Lower::new(Lower::new_boxed(Original::new_boxed()));
 
         assert_eq!(apply(&tag, "lowercase"), "lowercase");
         assert_eq!(apply(&tag, "UPPERCASE"), "uppercase");
@@ -617,15 +620,26 @@ mod tests {
 
     #[test]
     fn template() {
+        // template without case mimicking
+        let tag = NoMimicCase::new(Literal::new_boxed("$0"));
+
+        assert_eq!(apply(&tag, "template"), "template");
+
+        // template on then off
         let tag = NoTemplate::new(Template::new_boxed(Literal::new_boxed("$0")));
 
         assert_eq!(apply(&tag, "template"), "$0");
 
+        // constructed template
         let tag = Template::new(Concat::new_boxed(
             Literal::new_boxed("$"),
             Literal::new_boxed("0"),
         ));
         assert_eq!(apply(&tag, "template"), "template");
+
+        // template for Original
+        let tag = Template::new(Original::new_boxed());
+        assert_eq!(apply(&tag, "$0 long"), "$0 long long");
     }
 
     #[test]
@@ -653,6 +667,16 @@ mod tests {
         let tag = NoMimicCase::new(Literal::new_boxed("bar"));
 
         assert_eq!(apply(&tag, "FOO"), "bar");
+    }
+
+    #[test]
+    fn template_and_mimic_case() {
+        let tag = MimicCase::new(Template::new_boxed(Concat::new_boxed(
+            Literal::new_boxed(""),
+            Lower::new_boxed(Literal::new_boxed("$0")),
+        )));
+
+        assert_eq!(apply(&tag, "TEMPLATE"), "TEMPLATE");
     }
 
     #[test]
