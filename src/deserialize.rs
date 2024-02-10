@@ -411,19 +411,21 @@ mod tests {
 
     #[test]
     fn ron_invalid_tag_any() {
-        assert!(ron::from_str::<Accent>(
+        let empty = ron::from_str::<Accent>(
             r#"
 (
     patterns: {
         "a": {"Any": []}
     }
 )
-"#
+"#,
         )
         .err()
-        .unwrap()
-        .to_string()
-        .contains("at least one element"));
+        .unwrap();
+        assert_eq!(
+            empty.code.to_string(),
+            "invalid length 0, expected at least one element"
+        );
     }
 
     #[test]
@@ -458,7 +460,7 @@ mod tests {
 
         assert_eq!(
             empty.code.to_string(),
-            "invalid length 0, expected at least one element"
+            "Expected at least one element but found zero elements instead"
         );
 
         assert_eq!(
