@@ -1,7 +1,7 @@
 (
-    patterns: [
+    patterns: {
         // varying string lenghts
-        (r"\w+", {"Original": ()}),
-        (r"\W+", {"Original": ()}),
-    ],
+        r"\w+": {"Original": ()},
+        r"\W+": {"Original": ()},
+    },
 )

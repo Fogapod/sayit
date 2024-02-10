@@ -1,5 +1,5 @@
 (
-    patterns: [
-        (r"\w+", {"Lower": {"Lower": {"Lower": {"Lower": {"Lower": {"Original": ()}}}}}}),
-    ],
+    patterns: {
+        r"\w+": {"Lower": {"Lower": {"Lower": {"Lower": {"Lower": {"Original": ()}}}}}},
+    },
 )

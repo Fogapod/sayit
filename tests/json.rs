@@ -11,7 +11,7 @@ pub fn read_accent(filename: PathBuf) -> Accent {
 }
 
 #[test]
-fn json_examples_work() {
+fn json_accents_work() {
     let lines = read_sample_file_lines();
 
     let mut tested_at_least_one = false;

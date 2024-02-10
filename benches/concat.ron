@@ -1,13 +1,13 @@
 (
-    patterns: [
+    patterns: {
         // use \w+ and \W+ to vary string lengths
-        (r"\w+", {"Concat": (
+        r"\w+": {"Concat": (
             {"Original": ()},
             {"Original": ()},
-        )}),
-        (r"\W+", {"Concat": (
+        )},
+        r"\W+": {"Concat": (
             {"Original": ()},
             {"Original": ()},
-        )}),
-    ],
+        )},
+    },
 )
