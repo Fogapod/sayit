@@ -5,7 +5,7 @@ use crate::{
     utils::LiteralString,
 };
 
-use std::{collections::BTreeMap, fmt, marker::PhantomData};
+use std::{collections::BTreeMap, fmt, marker::PhantomData, sync::OnceLock};
 
 use regex::Regex;
 use serde::{
@@ -108,6 +108,8 @@ struct WordRegex(Regex);
 #[derive(Debug)]
 struct PatternRegex(Regex);
 
+static REGEX_FLAGS_REGEX: OnceLock<Regex> = OnceLock::new();
+
 impl TryFrom<String> for WordRegex {
     type Error = String;
 
@@ -118,8 +120,21 @@ impl TryFrom<String> for WordRegex {
             "m"
         };
 
+        // a hack to extract regex flags from words. they do not work since they would be placed
+        // after \b without this
+        let flags_regex =
+            REGEX_FLAGS_REGEX.get_or_init(|| Regex::new(r"^(:?\(\?-?[a-zA-Z]+\))+").unwrap());
+
+        let (maybe_regex_flags_from_string, s) = match flags_regex.captures(&s) {
+            Some(caps) => (caps.get(0).unwrap().as_str(), flags_regex.replace(&s, "")),
+            None => ("", s.into()),
+        };
+
         Ok(Self(
-            Regex::new(&format!(r"(?{regex_flags})\b{s}\b")).map_err(|err| err.to_string())?,
+            Regex::new(&format!(
+                r"(?{regex_flags}){maybe_regex_flags_from_string}\b{s}\b"
+            ))
+            .map_err(|err| err.to_string())?,
         ))
     }
 }
@@ -278,6 +293,7 @@ mod tests {
     use regex::Regex;
 
     use crate::{
+        deserialize::WordRegex,
         rule::Rule,
         tag::{Any, Literal, Original, Tag, Weights},
         Accent,
@@ -771,5 +787,15 @@ mod tests {
         .unwrap();
 
         assert_eq!(accent.say_it("565 0", 0), "666 101");
+    }
+
+    #[test]
+    fn regex_flags_are_moved_in_word_regex() {
+        let s = "(?i)(?U)(?-Ri)(dw)test".to_owned();
+
+        assert_eq!(
+            WordRegex::try_from(s).unwrap().0.as_str(),
+            r"(?m)(?i)(?U)(?-Ri)\b(dw)test\b"
+        );
     }
 }
