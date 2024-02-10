@@ -60,6 +60,8 @@
 //!
 //! // Deserialize is only required with `deserialize` crate feature
 //! #[derive(Clone, Debug, serde::Deserialize)]
+//! // transparent allows using `true` directly instead of `(true)`
+//! #[serde(transparent)]
 //! pub struct StringCase(bool);
 //!
 //! // `typetag` is only required with `deserialize` crate feature
@@ -87,8 +89,8 @@
 //!     r#"
 //! (
 //!     patterns: {
-//!         "a": {"StringCase": (true)},
-//!         "b": {"StringCase": (false)},
+//!         "a": {"StringCase": true},
+//!         "b": {"StringCase": false},
 //!     }
 //! )
 //! "#,
