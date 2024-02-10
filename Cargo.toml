@@ -1,6 +1,6 @@
 [package]
 name = "sayit"
-version = "0.0.7"
+version = "0.0.8"
 authors = ["fogapod"]
 edition = "2021"
 description = "String replacements using regex"
