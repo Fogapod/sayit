@@ -1,43 +1,23 @@
-use std::{
-    fs::{self, File},
-    io::{self, BufRead},
-    path::PathBuf,
-};
+use sayit::Accent;
+
+use std::{fs, io, path::PathBuf};
 
 use clap::Parser;
-
-use sayit::Accent;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
 struct Args {
-    /// Accent file path (currently only ron supported)
+    /// Read accent from file (currently only ron supported)
     #[arg(short, long, group = "accent_def")]
     accent: Option<PathBuf>,
 
-    /// Directly provided accent (ron format)
+    /// Read accent from stdin(currently only ron supported)
     #[arg(long, group = "accent_def")]
     accent_string: Option<String>,
 
-    /// Accent intensity
+    /// Set intensity
     #[arg(short, long, default_value_t = 0)]
     intensity: u64,
-
-    /// File to apply accent to. Reads from stdin if unset
-    #[arg(short, long)]
-    file: Option<PathBuf>,
-}
-
-fn apply_accent(accent: &Accent, instensity: u64, line: io::Result<String>) -> Result<(), String> {
-    println!(
-        "{}",
-        accent.say_it(
-            &line.map_err(|err| format!("reading line: {err}"))?,
-            instensity
-        )
-    );
-
-    Ok(())
 }
 
 fn main() -> Result<(), String> {
@@ -54,15 +34,11 @@ fn main() -> Result<(), String> {
     let accent =
         ron::from_str::<Accent>(&accent_string).map_err(|err| format!("parsing accent: {err}"))?;
 
-    if let Some(filename) = args.file {
-        let file = File::open(filename).map_err(|err| format!("reading input file: {err}"))?;
-        for line in io::BufReader::new(file).lines() {
-            apply_accent(&accent, args.intensity, line)?;
-        }
-    } else {
-        for line in io::stdin().lines() {
-            apply_accent(&accent, args.intensity, line)?;
-        }
+    for line in io::stdin().lines() {
+        let line = line.map_err(|err| format!("reading line: {err}"))?;
+        let applied = accent.say_it(&line, args.intensity);
+
+        println!("{applied}");
     }
 
     Ok(())

@@ -96,3 +96,23 @@ Full reference:
 ```
 
 See more examples in [examples](examples) folder.
+
+## CLI tool
+
+This library comes with a simple command line tool you can install with:
+
+```sh
+cargo install sayit --features=cli
+```
+
+Interactive session:
+
+```sh
+sayit --accent examples/scotsman.ron
+```
+
+Apply to file:
+
+```sh
+cat filename.txt | sayit --accent examples/french.ron > newfile.txt
+```
