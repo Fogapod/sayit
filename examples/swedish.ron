@@ -1,39 +1,39 @@
 (
-    patterns: [
-        ("w", {"Literal": "v"}),
-        ("j", {"Literal": "y"}),
-        ("bo", {"Literal":"bjo"}),
-        ("$", {"Weights": [
-            (2, {"Original": ()}),
-            (1, {"Literal": " bork!"}),
-            (1, {"Literal": " bork, bork!"}),
-        ]}),
-    ],
+    patterns: {
+        "w": {"Literal": "v"},
+        "j": {"Literal": "y"},
+        "bo": {"Literal":"bjo"},
+        "$": {"Weights": {
+            2: {"Original": ()},
+            1: {"Literal": " bork!"},
+            1: {"Literal": " bork, bork!"},
+        }},
+    },
     intensities: {
         1: Extend((
-            patterns: [
-                ("$", {"Weights": [
-                    (1, {"Original": ()}),
-                    (1, {"Literal": " bork!"}),
-                    (1, {"Literal": " bork, bork!"}),
-                    (1, {"Literal": " bork, bork, bork!"}),
-                ]}),
-            ],
+            patterns: {
+                "$": {"Weights": {
+                    1: {"Original": ()},
+                    1: {"Literal": " bork!"},
+                    1: {"Literal": " bork, bork!"},
+                    1: {"Literal": " bork, bork, bork!"},
+                }},
+            },
         )),
         2: Extend((
-            patterns: [
-                ("a", {"Any": [
+            patterns: {
+                "a": {"Any": [
                     {"Literal": "å"},
                     {"Literal": "ä"},
                     {"Literal": "æ"},
                     {"Literal": "a"},
-                ]}),
-                ("o", {"Any": [
+                ]},
+                "o": {"Any": [
                     {"Literal": "ö"},
                     {"Literal": "ø"},
                     {"Literal": "o"},
-                ]}),
-            ],
+                ]},
+            },
         )),
     },
 )

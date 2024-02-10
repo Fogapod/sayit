@@ -1,11 +1,17 @@
-use crate::accent::Accent;
-use crate::intensity::{Intensity, IntensityBody};
-use crate::tag::{Any, AnyError, Tag, Weights, WeightsError};
-use crate::utils::LiteralString;
+use crate::{
+    accent::Accent,
+    intensity::{Intensity, IntensityBody},
+    tag::{Any, AnyError, Tag, Weights, WeightsError},
+    utils::LiteralString,
+};
+
+use std::{collections::BTreeMap, fmt, marker::PhantomData};
 
 use regex::Regex;
-use serde::{de, Deserialize, Deserializer};
-use std::collections::BTreeMap;
+use serde::{
+    de::{self, MapAccess, Visitor},
+    Deserialize, Deserializer,
+};
 
 impl<'de> Deserialize<'de> for LiteralString {
     fn deserialize<D>(deserializer: D) -> Result<LiteralString, D::Error>
@@ -31,19 +37,46 @@ impl<'de> Deserialize<'de> for Any {
     }
 }
 
-impl<'de> Deserialize<'de> for Weights {
-    fn deserialize<D>(deserializer: D) -> Result<Weights, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let items: Vec<(u64, Box<dyn Tag>)> = Deserialize::deserialize(deserializer)?;
+struct WeightsVisitor {}
 
-        Self::new(items).map_err(|err| match err {
+impl WeightsVisitor {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl<'de> Visitor<'de> for WeightsVisitor {
+    type Value = Weights;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("weights: `1: Tag`")
+    }
+
+    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+    where
+        M: MapAccess<'de>,
+    {
+        let mut data = Vec::with_capacity(access.size_hint().unwrap_or(0));
+
+        while let Some((key, value)) = access.next_entry()? {
+            data.push((key, value));
+        }
+
+        Weights::new(data).map_err(|err| match err {
             WeightsError::ZeroItems => de::Error::invalid_length(0, &"at least one element"),
             WeightsError::NonPositiveTotalWeights => {
                 de::Error::custom("weights must add up to positive number")
             }
         })
+    }
+}
+
+impl<'de> Deserialize<'de> for Weights {
+    fn deserialize<D>(deserializer: D) -> Result<Weights, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(WeightsVisitor::new())
     }
 }
 
@@ -107,14 +140,81 @@ impl TryFrom<String> for PatternRegex {
     }
 }
 
+/// Deserializes as map but is actually a vec of (K, V) to preserve order
+struct RuleMap<T> {
+    ordered: Vec<(T, Box<dyn Tag>)>,
+}
+
+impl<T> Default for RuleMap<T> {
+    fn default() -> Self {
+        Self::with_capacity(0)
+    }
+}
+
+impl<T> RuleMap<T> {
+    fn with_capacity(capacity: usize) -> Self {
+        Self {
+            ordered: Vec::with_capacity(capacity),
+        }
+    }
+}
+
+struct RuleMapVisitor<T> {
+    marker: PhantomData<fn() -> RuleMap<T>>,
+}
+
+impl<T> RuleMapVisitor<T> {
+    fn new() -> Self {
+        Self {
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T> Visitor<'de> for RuleMapVisitor<T>
+where
+    T: Deserialize<'de>,
+{
+    type Value = RuleMap<T>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str(r#"rule map: `"regex": Tag`"#)
+    }
+
+    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+    where
+        M: MapAccess<'de>,
+    {
+        let mut map = RuleMap::with_capacity(access.size_hint().unwrap_or(0));
+
+        while let Some((key, value)) = access.next_entry()? {
+            map.ordered.push((key, value));
+        }
+
+        Ok(map)
+    }
+}
+
+impl<'de, T> Deserialize<'de> for RuleMap<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(RuleMapVisitor::new())
+    }
+}
+
 // this exists separately and not flattened because ron does not support serde(flatten)
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct IntensityBodyDef {
     #[serde(default)]
-    words: Vec<(WordRegex, Box<dyn Tag>)>,
+    words: RuleMap<WordRegex>,
     #[serde(default)]
-    patterns: Vec<(PatternRegex, Box<dyn Tag>)>,
+    patterns: RuleMap<PatternRegex>,
 }
 
 impl From<IntensityBodyDef> for IntensityBody {
@@ -122,11 +222,13 @@ impl From<IntensityBodyDef> for IntensityBody {
         Self {
             words: intensity_def
                 .words
+                .ordered
                 .into_iter()
                 .map(|(regex, tag)| (regex.0, tag))
                 .collect(),
             patterns: intensity_def
                 .patterns
+                .ordered
                 .into_iter()
                 .map(|(regex, tag)| (regex.0, tag))
                 .collect(),
@@ -138,9 +240,9 @@ impl From<IntensityBodyDef> for IntensityBody {
 #[serde(deny_unknown_fields)]
 pub(crate) struct AccentDef {
     #[serde(default)]
-    words: Vec<(WordRegex, Box<dyn Tag>)>,
+    words: RuleMap<WordRegex>,
     #[serde(default)]
-    patterns: Vec<(PatternRegex, Box<dyn Tag>)>,
+    patterns: RuleMap<PatternRegex>,
     #[serde(default)]
     intensities: BTreeMap<u64, Intensity>,
 }
@@ -156,11 +258,13 @@ impl TryFrom<AccentDef> for Accent {
         Ok(Self::new(
             accent_def
                 .words
+                .ordered
                 .into_iter()
                 .map(|(regex, tag)| (regex.0, tag))
                 .collect(),
             accent_def
                 .patterns
+                .ordered
                 .into_iter()
                 .map(|(regex, tag)| (regex.0, tag))
                 .collect(),
@@ -186,7 +290,7 @@ mod tests {
 
     #[test]
     fn ron_empty() {
-        let _ = ron::from_str::<Accent>(r#"(words: [], patterns: [], intensities: {})"#).unwrap();
+        let _ = ron::from_str::<Accent>(r#"(words: {}, patterns: {}, intensities: {})"#).unwrap();
     }
 
     #[test]
@@ -194,13 +298,13 @@ mod tests {
         let parsed = ron::from_str::<Accent>(
             r#"
 (
-    words: [("a", {"Original": ()})],
-    patterns: [("1", {"Original": ()})],
+    words: {"a": {"Original": ()}},
+    patterns: {"1": {"Original": ()}},
     intensities: {
         1: Extend(
             (
-                words: [("b", {"Original": ()})],
-                patterns: [("2", {"Original": ()})],
+                words: {"b": {"Original": ()}},
+                patterns: {"2": {"Original": ()}},
             )
 
         ),
@@ -258,16 +362,13 @@ mod tests {
         let parsed = ron::from_str::<Accent>(
             r#"
 (
-    words: [("a", {"Original": ()})],
-    patterns: [("1", {"Original": ()})],
+    words: {"a": {"Original": ()}},
+    patterns: {"1": {"Original": ()}},
     intensities: {
-        1: Replace(
-            (
-                words: [("b", {"Original": ()})],
-                patterns: [("2", {"Original": ()})],
-            )
-
-        ),
+        1: Replace((
+            words: {"b": {"Original": ()}},
+            patterns: {"2": {"Original": ()}},
+        )),
     },
 )
 "#,
@@ -313,10 +414,9 @@ mod tests {
         assert!(ron::from_str::<Accent>(
             r#"
 (
-    patterns:
-        [
-            ("a", {"Any": []})
-        ]
+    patterns: {
+        "a": {"Any": []}
+    }
 )
 "#
         )
@@ -328,38 +428,43 @@ mod tests {
 
     #[test]
     fn ron_invalid_tag_weighted() {
-        assert!(ron::from_str::<Accent>(
+        let empty = ron::from_str::<Accent>(
             r#"
 (
-    patterns:
-        [
-            ("a", {"Weights": []))
-        ]
+    patterns: {
+        "a": {"Weights": {}}
+    }
 )
-"#
+"#,
         )
         .err()
-        .unwrap()
-        .to_string()
-        .contains("at least one element"));
+        .unwrap();
 
-        assert!(ron::from_str::<Accent>(
+        let zero_sum = ron::from_str::<Accent>(
             r#"
 (
-    patterns:
-        [
-            ("a", {"Weights": [
-                    (0, {"Original": ()}),
-                    (0, {"Original": ()}),
-            ]})
-        ]
+    patterns: {
+        "a": {"Weights": {
+            0: {"Original": ()},
+            0: {"Original": ()},
+            0: {"Original": ()},
+        }},
+    }
 )
-"#
+"#,
         )
         .err()
-        .unwrap()
-        .to_string()
-        .contains("weights must add up to positive number"));
+        .unwrap();
+
+        assert_eq!(
+            empty.code.to_string(),
+            "invalid length 0, expected at least one element"
+        );
+
+        assert_eq!(
+            zero_sum.code.to_string(),
+            "weights must add up to positive number"
+        );
     }
 
     #[test]
@@ -382,56 +487,56 @@ mod tests {
     fn ron_all_features() {
         let ron_string = r#"
 (
-    words: [
-        ("test", {"Literal": "Testing in progress; Please ignore ..."}),
-        ("badword", {"Literal": ""}),
-        ("dupe", {"Literal": "0"}),
-    ],
-    patterns: [
+    words: {
+        "test": {"Literal": "Testing in progress; Please ignore ..."},
+        "badword": {"Literal": ""},
+        "dupe": {"Literal": "0"},
+    },
+    patterns: {
         // lowercase letters are replaced with e
-        ("[a-z]", {"Literal": "e"}),
+        "[a-z]": {"Literal": "e"},
         // uppercase letters are replaced with 50% uppercase "E" and 10% for each of the cursed "E"
-        ("[A-Z]", {"Weights": [
-            (5, {"Literal": "E"}),
-            (1, {"Literal": "Ē"}),
-            (1, {"Literal": "Ê"}),
-            (1, {"Literal": "Ë"}),
-            (1, {"Literal": "È"}),
-            (1, {"Literal": "É"}),
-        ]}),
+        "[A-Z]": {"Weights": {
+            5: {"Literal": "E"},
+            1: {"Literal": "Ē"},
+            1: {"Literal": "Ê"},
+            1: {"Literal": "Ë"},
+            1: {"Literal": "È"},
+            1: {"Literal": "É"},
+        }},
         // numbers are replaced with 6 or 9 or are left untouched
         // excessive nesting that does nothing
-        ("[0-9]", {"Any": [
-            {"Weights": [
-                (1, {"Any": [
+        "[0-9]": {"Any": [
+            {"Weights": {
+                1: {"Any": [
                       {"Literal": "6"},
                       {"Literal": "9"},
                       {"Original": ()},
-                ]}),
-            ]},
-        ]}),
-    ],
+                ]},
+            }},
+        ]},
+    },
     intensities: {
         1: Replace((
-            words: [
-                ("replaced", {"Literal": "words"}),
-                ("dupe", {"Literal": "1"}),
-                ("Windows", {"Literal": "Linux"}),
-            ],
-            patterns: [
-                ("a+", {"Literal": "multiple A's"}),
-                ("^", {"Literal": "start"}),
-            ],
+            words: {
+                "replaced": {"Literal": "words"},
+                "dupe": {"Literal": "1"},
+                "Windows": {"Literal": "Linux"},
+            },
+            patterns: {
+                "a+": {"Literal": "multiple A's"},
+                "^": {"Literal": "start"},
+            },
         )),
         2: Extend((
-            words: [
-                ("dupe", {"Literal": "2"}),
-                ("added", {"Literal": "words"}),
-            ],
-            patterns: [
-                ("b+", {"Literal": "multiple B's"}),
-                ("$", {"Literal": "end"}),
-            ],
+            words: {
+                "dupe": {"Literal": "2"},
+                "added": {"Literal": "words"},
+            },
+            patterns: {
+                "b+": {"Literal": "multiple B's"},
+                "$": {"Literal": "end"},
+            },
         )),
     },
 )
@@ -565,16 +670,16 @@ mod tests {
         let parsed = ron::from_str::<Accent>(
             r#"
 (
-    words: [
-        ("dupew", {"Literal": "0"}),
-        ("dupew", {"Literal": "1"}),
-        ("dupew", {"Literal": "2"}),
-    ],
-    patterns: [
-        ("dupep", {"Literal": "0"}),
-        ("dupep", {"Literal": "1"}),
-        ("dupep", {"Literal": "2"}),
-    ],
+    words: {
+        "dupew": {"Literal": "0"},
+        "dupew": {"Literal": "1"},
+        "dupew": {"Literal": "2"},
+    },
+    patterns: {
+        "dupep": {"Literal": "0"},
+        "dupep": {"Literal": "1"},
+        "dupep": {"Literal": "2"},
+    },
 )
 "#,
         )
@@ -604,13 +709,13 @@ mod tests {
         let accent = ron::from_str::<Accent>(
             r#"
 (
-    words: [("intensity", {"Literal": "0"})],
+    words: {"intensity": {"Literal": "0"}},
     intensities: {
         1: Replace((
-            words: [("intensity", {"Literal": "1"})],
+            words: {"intensity": {"Literal": "1"}},
         )),
         5: Replace((
-            words: [("intensity", {"Literal": "5"})],
+            words: {"intensity": {"Literal": "5"}},
         )),
     },
 )
@@ -655,9 +760,9 @@ mod tests {
         let accent = ron::from_str::<Accent>(
             r#"
 (
-    patterns: [
-        (r"\d+", {"Increment": (101)}),
-    ]
+    patterns: {
+        r"\d+": {"Increment": (101)},
+    }
 )
 "#,
         )

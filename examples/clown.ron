@@ -1,35 +1,35 @@
 (
-    patterns: [
-        ("$", {"Any": [
+    patterns: {
+        "$": {"Any": [
             {"Literal": " HONK!"},
             {"Literal": " HONK HONK!"},
-        ]}),
-    ],
+        ]},
+    },
     intensities: {
         1: Extend((
-            patterns: [
-                ("$", {"Any": [
+            patterns: {
+                "$": {"Any": [
                     {"Literal": " HONK HONK!"},
                     {"Literal": " HONK HONK HONK!"},
-                ]}),
-            ],
+                ]},
+            },
         )),
         2: Extend((
-            patterns: [
-                (".+", {"Upper": {"Original": ()}}),
-                ("$", {"Any": [
+            patterns: {
+                ".+": {"Upper": {"Original": ()}},
+                "$": {"Any": [
                     {"Literal": " HONK HONK HONK!"},
                     {"Literal": " HONK HONK HONK HONK!"},
-                ]}),
-            ],
+                ]},
+            },
         )),
         3: Extend((
-            patterns: [
-                ("$", {"Any": [
+            patterns: {
+                "$": {"Any": [
                     {"Literal": " HONK HONK HONK HONK!"},
                     {"Literal": " HONK HONK HONK HONK HONK!!!!!!!"},
-                ]}),
-            ],
+                ]},
+            },
         )),
     },
 )

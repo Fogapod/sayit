@@ -1,16 +1,16 @@
 (
-    patterns: [
-        ("(?i)[rlv]", {"Literal": "w"}),
-        ("ove", {"Literal": "uv"}),
-        ("ni", {"Literal": "nye"}),
-        ("na", {"Literal": "nya"}),
-        ("no", {"Literal": "nyo"}),
-        ("ne", {"Literal": "nye"}),
-        ("nu", {"Literal": "nyu"}),
-        ("!", {"Literal": "! owo"}),
+    patterns: {
+        "(?i)[rlv]": {"Literal": "w"},
+        "ove": {"Literal": "uv"},
+        "ni": {"Literal": "nye"},
+        "na": {"Literal": "nya"},
+        "no": {"Literal": "nyo"},
+        "ne": {"Literal": "nye"},
+        "nu": {"Literal": "nyu"},
+        "!": {"Literal": "! owo"},
         // 10% for prefix
-        ("^", {"Weights": [
-            (1, {"Any": [
+        "^": {"Weights": {
+            1: {"Any": [
                 {"Literal": "!!! "},
                 {"Literal": "(=^‥^=) "},
                 {"Literal": "~~ "},
@@ -73,12 +73,12 @@
                 {"Literal": "yori "},
                 {"Literal": "zaazaa "},
                 {"Literal": "(=；ｪ；=) "},
-            ]}),
-            (9, {"Original": ()}),
-        ]}),
+            ]},
+            9: {"Original": ()},
+        }},
         // 80% for ending
-        ("$", {"Weights": [
-            (8, {"Any": [
+        "$": {"Weights": {
+            8: {"Any": [
                 {"Literal": " !!!"},
                 {"Literal": " (=^‥^=)"},
                 {"Literal": " ~~"},
@@ -141,8 +141,8 @@
                 {"Literal": " yori"},
                 {"Literal": " zaazaa"},
                 {"Literal": " (=；ｪ；=)"},
-            ]}),
-            (2, {"Original": ()}),
-        ]}),
-    ],
+            ]},
+            2: {"Original": ()},
+        }},
+    },
 )
