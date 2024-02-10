@@ -1,0 +1,87 @@
+(
+    words: {
+        // good
+        "(?i)(good|nice|great|positive)": {"Weights": {
+            1: {"Any": [
+                {"Literal": "tanzanite"},
+                {"Literal": "sharty-saving gem"},
+                {"Literal": "diamonderald"},
+                {"Literal": "oganesson"},
+            ]},
+            5: {"Literal": "diamond"},
+            10: {"Any": [
+                {"Literal": "gemerald"},
+                {"Literal": "ketchup"},
+                {"Literal": "ham"},
+            ]},
+            20: {"Literal": "gem"},
+        }},
+        "(?i)(fantastic|amazing|masterpiece)": {"Any": [
+            {"Literal": "kino"},
+            {"Literal": "gemerald"},
+        ]},
+        "cute": {"Literal": "gemmy"},
+        "pretty": {"Literal": "gemeraldic"},
+        "awesome": {"Literal": "diamondic"},
+
+        // neutral
+        "neutral": {"Literal": "carbon"},
+        "fine": {"Literal": "ruby"},
+        "acceptable": {"Literal": "iron"},
+        "basic": {"Literal": "steel"},
+
+        // bad
+        "(?i)(bad|shit|negative)": {"Weights": {
+            1: {"Any": [
+                {"Literal": "poison"},
+                {"Literal": "antimatter"},
+                {"Literal": "sharty-destroying coal"},
+                {"Literal": "sharty-shattering brimstone"},
+            ]},
+            3: {"Literal": "brimstone"},
+            5: {"Literal": "dust"},
+            10: {"Any": [
+                {"Literal": "mustard"},
+                {"Literal": "charcoal"},
+            ]},
+            20: {"Literal": "coal"},
+        }},
+        "(?i)(disgusting|gross|scary)": {"Any": [
+            {"Literal": "gravestone"},
+            {"Literal": "grimstone"},
+        ]},
+        "(?i)(garbage|trash)": {"Any": [
+            {"Literal": "rubbish"},
+            {"Literal": "dirt"},
+            {"Literal": "ash"},
+            {"Literal": "detritus"},
+        ]},
+        "(?i)(confusing|nonsense)": {"Literal": "margerald"},
+        "(?i)(suboptimal|unacceptable)": {"Literal": "rust"},
+        "dirty": {"Literal": "coalerald"}, 
+        "inferior": {"Literal": "brimmy"}, 
+
+        // misc
+        "(?i)(visitor|guest|assistant)": {"Literal": "lurker"},
+        "(?i)(man|lad)": {"Literal": "chud"},
+        "(?i)(men|lads|folk)": {"Literal": "chuds"},
+        "(?i)(guy|boy)": {"Literal": "jak"}, 
+        "(?i)(guy|boy)s": {"Literal": "jaks"}, 
+        "(?i)(kid|child)": {"Literal": "chuddie"},
+        "(?i)(doc|doctor|cmo)": {"Any": [
+            {"Literal": "Dr. Soyberg"},
+            {"Literal": "sanitar"},
+        ]},
+        "though": {"Any": [
+            {"Literal": "tho"},
+            {"Literal": "thou"},
+            {"Literal": "doe"},
+            {"Literal": "dough"},
+        ]},
+        "(?i)(insane|mad)": {"Literal": "nuts"},
+        "excited": {"Literal": "jopping"},
+        "medbay": {"Literal": "mental asylum"},
+        "appeared": {"Literal": "dropped"},
+        "frog": {"Literal": "pepe"},
+    }
+)
