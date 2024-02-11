@@ -15,13 +15,13 @@ pub struct TagOptions {
 
 impl TagOptions {
     /// Default expensive case mimicking implementation
-    fn mimic_case(target: &str, source: &str) -> String {
+    pub fn mimic_case(target: &str, source: &str) -> String {
         let s = LiteralString::from(target);
         s.mimic_ascii_case(source)
     }
 
     /// Default templating implementation using [`regex::Captures::expand`]
-    fn template(template: &str, caps: &Captures) -> String {
+    pub fn template(template: &str, caps: &Captures) -> String {
         let mut dst = String::new();
         caps.expand(template, &mut dst);
         dst
