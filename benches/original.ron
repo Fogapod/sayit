@@ -1,7 +1,12 @@
 (
-    patterns: {
-        // varying string lenghts
-        r"\w+": {"Original": ()},
-        r"\W+": {"Original": ()},
-    },
+    accent: [
+        (
+            name: "",
+            rules: {
+                // varying string lenghts
+                r"\w+": {"Original": ()},
+                r"\W+": {"Original": ()},
+            },
+        ),
+    ]
 )

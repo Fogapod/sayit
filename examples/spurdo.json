@@ -1,70 +1,93 @@
 {
-    "words": {
-        "epic": {"Literal": "ebin"},
-        ":?\\]": {"Any": [
-            {"Literal": ":D"},
-            {"Literal": ":DD"},
-            {"Literal": ":DDD"}
-        ]}
-    },
-    "patterns": {
-        "xc": {"Literal": "gg"},
-        "c": {"Literal": "g"},
-        "k": {"Literal": "g"},
-        "t": {"Literal": "d"},
-        "p": {"Literal": "b"},
-        "x": {"Literal": "gs"},
-        "\\Bng\\b": {"Literal": "gn"},
-        "$": {"Weights": {
-            "1": {"Original": null},
-            "1": {"Any": [
-                {"Literal": " :D"},
-                {"Literal": " :DD"},
-                {"Literal": " :DDD"},
-                {"Literal": " :DDDD"},
-                {"Literal": " :DDDDD"}
-            ]}
-        }}
-    },
-    "intensities": {
-        "1": {"Extend": {
-            "patterns": {
+    "accent": [
+        {
+            "name": "words",
+            "format": "\\b{}\\b",
+            "rules": {
+                "epic": {"Literal": "ebin"},
+                ":?\\]": {"Any": [
+                    {"Literal": ":D"},
+                    {"Literal": ":DD"},
+                    {"Literal": ":DDD"}
+                ]}
+            }
+        },
+        {
+            "name": "patterns",
+            "rules": {
+                "xc": {"Literal": "gg"},
+                "c": {"Literal": "g"},
+                "k": {"Literal": "g"},
+                "t": {"Literal": "d"},
+                "p": {"Literal": "b"},
+                "x": {"Literal": "gs"},
+                "\\Bng\\b": {"Literal": "gn"},
                 "$": {"Weights": {
                     "1": {"Original": null},
-                    "2": {"Any": [
+                    "1": {"Any": [
+                        {"Literal": " :D"},
                         {"Literal": " :DD"},
                         {"Literal": " :DDD"},
                         {"Literal": " :DDDD"},
-                        {"Literal": " :DDDDD"},
-                        {"Literal": " :DDDDDD"}
+                        {"Literal": " :DDDDD"}
                     ]}
                 }}
-            },
-            "words": {
-                ":?\\]": {"Any": [
-                    {"Literal": ":DD"},
-                    {"Literal": ":DDD"},
-                    {"Literal": ":DDDD"}
-                ]}
             }
-        }},
-        "2": {"Extend": {
-            "patterns": {
-                "$": {"Any": [
-                    {"Literal": " :DDDD"},
-                    {"Literal": " :DDDDD"},
-                    {"Literal": " :DDDDDD"},
-                    {"Literal": " :DDDDDDD"},
-                    {"Literal": " :DDDDDDDD"}
-                ]}
+        }
+    ],
+    "intensities": {
+        "1": {"Extend": [
+            {
+                "name": "words",
+                "format": "\\b{}\\b",
+                "rules": {
+                    ":?\\]": {"Any": [
+                        {"Literal": ":DD"},
+                        {"Literal": ":DDD"},
+                        {"Literal": ":DDDD"}
+                    ]}
+                }
             },
-            "words": {
-                ":?\\]": {"Any": [
-                    {"Literal": ":DDDD"},
-                    {"Literal": ":DDDDD"},
-                    {"Literal": ":DDDDDD"}
-                ]}
+            {
+                "name": "patterns",
+                "rules": {
+                    "$": {"Weights": {
+                        "1": {"Original": null},
+                        "2": {"Any": [
+                            {"Literal": " :DD"},
+                            {"Literal": " :DDD"},
+                            {"Literal": " :DDDD"},
+                            {"Literal": " :DDDDD"},
+                            {"Literal": " :DDDDDD"}
+                        ]}
+                    }}
+                }
             }
-        }}
+        ]},
+        "2": {"Extend": [
+            {
+                "name": "words",
+                "format": "\\b{}\\b",
+                "rules": {
+                    ":?\\]": {"Any": [
+                        {"Literal": ":DDDD"},
+                        {"Literal": ":DDDDD"},
+                        {"Literal": ":DDDDDD"}
+                    ]}
+                }
+            },
+            {
+                "name": "patterns",
+                "rules": {
+                    "$": {"Any": [
+                        {"Literal": " :DDDD"},
+                        {"Literal": " :DDDDD"},
+                        {"Literal": " :DDDDDD"},
+                        {"Literal": " :DDDDDDD"},
+                        {"Literal": " :DDDDDDDD"}
+                    ]}
+                }
+            }
+        ]}
     }
 }

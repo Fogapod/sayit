@@ -1,70 +1,84 @@
 (
-    words: {
-        // duplicate words
-        r"\S+": {"Weights": {
-            9: {"Original": ()},
-            1: {"Literal": "$0 $0"},
-        }},
-        // duplicate either first or last character, including in duplicated words
-        r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)": {"Weights": {
-            8: {"Original": ()},
-            2: {"Any": [
-                // first
-                {"Literal": "$first-$first$middle$last"},
-                {"Literal": "$first-$first-$first$middle$last"},
-                // last
-                {"Literal": "$first$middle$last-$last"},
-                {"Literal": "$first$middle$last-$last-$last"},
-            ]},
-        }},
-    },
+    accent: [
+        (
+            name: "words",
+            format: r"\b{}\b",
+            rules: {
+                // duplicate words
+                r"\S+": {"Weights": {
+                    9: {"Original": ()},
+                    1: {"Literal": "$0 $0"},
+                }},
+                // duplicate either first or last character, including in duplicated words
+                r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)": {"Weights": {
+                    8: {"Original": ()},
+                    2: {"Any": [
+                        // first
+                        {"Literal": "$first-$first$middle$last"},
+                        {"Literal": "$first-$first-$first$middle$last"},
+                        // last
+                        {"Literal": "$first$middle$last-$last"},
+                        {"Literal": "$first$middle$last-$last-$last"},
+                    ]},
+                }},
+            },
+        ),
+    ],
     intensities: {
-        1: Replace((
-            words: {
-                r"\S+": {"Weights": {
-                    8: {"Original": ()},
-                    1: {"Literal": "$0 $0"},
-                    1: {"Literal": "$0 $0 $0"},
-                }},
-                r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)": {"Weights": {
-                    8: {"Original": ()},
-                    2: {"Any": [
-                        // first
-                        {"Literal": "$first-$first$middle$last"},
-                        {"Literal": "$first-$first-$first$middle$last"},
-                        {"Literal": "$first-$first-$first-$first$middle$last"},
-                        // last
-                        {"Literal": "$first$middle$last-$last"},
-                        {"Literal": "$first$middle$last-$last-$last"},
-                        {"Literal": "$first$middle$last-$last-$last-$last"},
-                    ]},
-                }},
-            },
-        )),
-        2: Replace((
-            words: {
-                r"\S+": {"Weights": {
-                    7: {"Original": ()},
-                    1: {"Literal": "$0 $0"},
-                    1: {"Literal": "$0 $0 $0"},
-                    1: {"Literal": "$0 $0 $0 $0"},
-                }},
-                r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)": {"Weights": {
-                    8: {"Original": ()},
-                    2: {"Any": [
-                        // first
-                        {"Literal": "$first-$first$middle$last"},
-                        {"Literal": "$first-$first-$first$middle$last"},
-                        {"Literal": "$first-$first-$first-$first$middle$last"},
-                        {"Literal": "$first-$first-$first-$first-$first$middle$last"},
-                        // last
-                        {"Literal": "$first$middle$last-$last"},
-                        {"Literal": "$first$middle$last-$last-$last"},
-                        {"Literal": "$first$middle$last-$last-$last-$last"},
-                        {"Literal": "$first$middle$last-$last-$last-$last-$last"},
-                    ]},
-                }},
-            },
-        )),
+        1: Replace([
+            (
+                name: "words",
+                format: r"\b{}\b",
+                rules: {
+                    r"\S+": {"Weights": {
+                        8: {"Original": ()},
+                        1: {"Literal": "$0 $0"},
+                        1: {"Literal": "$0 $0 $0"},
+                    }},
+                    r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)": {"Weights": {
+                        8: {"Original": ()},
+                        2: {"Any": [
+                            // first
+                            {"Literal": "$first-$first$middle$last"},
+                            {"Literal": "$first-$first-$first$middle$last"},
+                            {"Literal": "$first-$first-$first-$first$middle$last"},
+                            // last
+                            {"Literal": "$first$middle$last-$last"},
+                            {"Literal": "$first$middle$last-$last-$last"},
+                            {"Literal": "$first$middle$last-$last-$last-$last"},
+                        ]},
+                    }},
+                },
+            ),
+        ]),
+        2: Replace([
+            (
+                name: "words",
+                format: r"\b{}\b",
+                rules: {
+                    r"\S+": {"Weights": {
+                        7: {"Original": ()},
+                        1: {"Literal": "$0 $0"},
+                        1: {"Literal": "$0 $0 $0"},
+                        1: {"Literal": "$0 $0 $0 $0"},
+                    }},
+                    r"(?P<first>\S)(?P<middle>\S*)(?P<last>\S)": {"Weights": {
+                        8: {"Original": ()},
+                        2: {"Any": [
+                            // first
+                            {"Literal": "$first-$first$middle$last"},
+                            {"Literal": "$first-$first-$first$middle$last"},
+                            {"Literal": "$first-$first-$first-$first$middle$last"},
+                            {"Literal": "$first-$first-$first-$first-$first$middle$last"},
+                            // last
+                            {"Literal": "$first$middle$last-$last"},
+                            {"Literal": "$first$middle$last-$last-$last"},
+                            {"Literal": "$first$middle$last-$last-$last-$last"},
+                            {"Literal": "$first$middle$last-$last-$last-$last-$last"},
+                        ]},
+                    }},
+                },
+            ),
+        ]),
     }
 )

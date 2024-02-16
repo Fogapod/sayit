@@ -23,7 +23,8 @@ include = [
 rand = "0.8"
 
 # pattern definition
-regex = { version ="1.10", features = ["perf-dfa-full"] }
+# excluded a couple unicode features
+regex-automata = { version = "0.4", default-features = false, features = ["std", "perf", "meta", "nfa", "dfa", "hybrid", "unicode-case", "unicode-perl", "unicode-word-boundary"] }
 
 # logging
 log = "0.4"

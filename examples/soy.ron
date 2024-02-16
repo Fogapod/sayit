@@ -1,108 +1,119 @@
 (
-    words: {
-        // good
-        "(?i)(good|nice|great|positive)": {"Weights": {
-            1: {"Any": [
-                {"Literal": "tanzanite"},
-                {"Literal": "sharty-saving gem"},
-                {"Literal": "diamonderald"},
-                {"Literal": "oganesson"},
-            ]},
-            5: {"Literal": "diamond"},
-            10: {"Any": [
-                {"Literal": "gemerald"},
-                {"Literal": "ketchup"},
-                {"Literal": "ham"},
-            ]},
-            20: {"Literal": "gem"},
-        }},
-        "(?i)(fantastic|amazing|masterpiece)": {"Any": [
-            {"Literal": "kino"},
-            {"Literal": "gemerald"},
-        ]},
-        "cute": {"Literal": "gemmy"},
-        "pretty": {"Literal": "gemeraldic"},
-        "awesome": {"Literal": "diamondic"},
+    accent: [
+        (
+            name: "pre",
+            rules: {
+                r"\bkill\s+(\w+)\b": {"Literal": "total $1 death"},
+            },
+        ),
+        (
+            name: "words",
+            format: r"\b{}\b",
+            rules: {
+                // good
+                "(?:good|nice|great|positive)": {"Weights": {
+                    1: {"Any": [
+                        {"Literal": "tanzanite"},
+                        {"Literal": "sharty-saving gem"},
+                        {"Literal": "diamonderald"},
+                        {"Literal": "oganesson"},
+                    ]},
+                    5: {"Literal": "diamond"},
+                    10: {"Any": [
+                        {"Literal": "gemerald"},
+                        {"Literal": "ketchup"},
+                        {"Literal": "ham"},
+                    ]},
+                    20: {"Literal": "gem"},
+                }},
+                "(?:fantastic|amazing|masterpiece)": {"Any": [
+                    {"Literal": "kino"},
+                    {"Literal": "gemerald"},
+                ]},
+                "cute": {"Literal": "gemmy"},
+                "pretty": {"Literal": "gemeraldic"},
+                "awesome": {"Literal": "diamondic"},
 
-        // neutral
-        "neutral": {"Literal": "carbon"},
-        "fine": {"Literal": "ruby"},
-        "acceptable": {"Literal": "iron"},
-        "basic": {"Literal": "steel"},
+                // neutral
+                "neutral": {"Literal": "carbon"},
+                "fine": {"Literal": "ruby"},
+                "acceptable": {"Literal": "iron"},
+                "basic": {"Literal": "steel"},
 
-        // bad
-        "(?i)(bad|shit|negative)": {"Weights": {
-            1: {"Any": [
-                {"Literal": "poison"},
-                {"Literal": "antimatter"},
-                {"Literal": "sharty-destroying coal"},
-                {"Literal": "sharty-shattering brimstone"},
-            ]},
-            3: {"Literal": "brimstone"},
-            5: {"Literal": "dust"},
-            10: {"Any": [
-                {"Literal": "mustard"},
-                {"Literal": "charcoal"},
-            ]},
-            20: {"Literal": "coal"},
-        }},
-        "(?i)(disgusting|gross|scary)": {"Any": [
-            {"Literal": "gravestone"},
-            {"Literal": "grimstone"},
-        ]},
-        "(?i)(garbage|trash)": {"Any": [
-            {"Literal": "rubbish"},
-            {"Literal": "dirt"},
-            {"Literal": "ash"},
-            {"Literal": "detritus"},
-        ]},
-        "(?i)(confusing|nonsense)": {"Literal": "margerald"},
-        "(?i)(suboptimal|unacceptable)": {"Literal": "rust"},
-        "dirty": {"Literal": "coalerald"}, 
-        "inferior": {"Literal": "brimmy"}, 
+                // bad
+                "(?:bad|shit|negative)": {"Weights": {
+                    1: {"Any": [
+                        {"Literal": "poison"},
+                        {"Literal": "antimatter"},
+                        {"Literal": "sharty-destroying coal"},
+                        {"Literal": "sharty-shattering brimstone"},
+                    ]},
+                    3: {"Literal": "brimstone"},
+                    5: {"Literal": "dust"},
+                    10: {"Any": [
+                        {"Literal": "mustard"},
+                        {"Literal": "charcoal"},
+                    ]},
+                    20: {"Literal": "coal"},
+                }},
+                "(?:disgusting|gross|scary)": {"Any": [
+                    {"Literal": "gravestone"},
+                    {"Literal": "grimstone"},
+                ]},
+                "(?:garbage|trash)": {"Any": [
+                    {"Literal": "rubbish"},
+                    {"Literal": "dirt"},
+                    {"Literal": "ash"},
+                    {"Literal": "detritus"},
+                ]},
+                "(?:confusing|nonsense)": {"Literal": "margerald"},
+                "(?:suboptimal|unacceptable)": {"Literal": "rust"},
+                "dirty": {"Literal": "coalerald"}, 
+                "inferior": {"Literal": "brimmy"}, 
 
-        // misc
-        "(?i)(visitor|guest|assistant)": {"Literal": "lurker"},
-        "(?i)(man|lad)": {"Literal": "chud"},
-        "(?i)(men|lads|folk)": {"Literal": "chuds"},
-        "(?i)(guy|boy|[a-zA-Z]*jak)": {"Literal": "'jak"},
-        "(?i)(guy|boy|[a-zA-Z]*jak)s": {"Literal": "'jaks"},
-        "(?i)(kid|child)": {"Literal": "chuddie"},
-        "(?i)(doc|doctor|cmo)": {"Any": [
-            {"Literal": "Dr. Soyberg"},
-            {"Literal": "sanitar"},
-        ]},
-        "though": {"Any": [
-            {"Literal": "tho"},
-            {"Literal": "thou"},
-            {"Literal": "doe"},
-            {"Literal": "dough"},
-        ]},
-        "(?i)(insane|mad)": {"Literal": "nuts"},
-        "excited": {"Literal": "jopping"},
-        "medbay": {"Literal": "mental asylum"},
-        "appeared": {"Literal": "dropped"},
-        "frog": {"Literal": "pepe"},
-        "feet": {"Literal": "cheese"},
-        "(?i)comics?": {"Literal": "'toss"},
-        "(?i)(fact|truth|true)s": {"Literal": "science"},
-        "(?i)(miscreant|weirdo|senile|deranged)": {"Literal": "schizo"},
-        "dead": {"Literal": "brimstone"},
-        "sucks": {"Literal": "coal"},
-        "(?i)(boss|captain|chief|director)": {"Literal": "kuz"},
-        "brig": {"Literal": "the asoylum"},
-        "ssnt": {"Literal": "'station"},
-        "bats": {"Literal": "fingerboys"},
-        "swedish": {"Literal": "swede"},
-        "win": {"Literal": "swedish win"},
-        "jacob": {"Literal": "'cob"},
-        "jacobson": {"Literal": "'Cobson"},
-        "(?i)porn(ography)?": {"Literal": "'P"},
-        r"(?i)kill\s+(\w+)": {"Literal": "total $1 death"},
-        "(?i)(peace|subdue)": {"Literal": "calm"},
-        "(?i)(surgery|heal|healing)": {"Literal": "BBC Therapy"},
-        "(?i)(pill|medication|atropine|fish oil|heparin|insulin|menthol|morphine)": {"Literal": "meds"},
-        // TODO: generate this from all drinks in game
-        "(?i)(water|absinthe|ale|amaretto|aloe juice|applejack|(apple|banana|berry|bungo|carrot|lemon|lime|orange|parship|peach|pineapple|plum|tomato|watermelon) juice|beer|bitters|champagne|clown's tears|coffee|cognac|gin|milk|sake|soda|sol dry|soy milk|cola|tea|tequila|vermonth|vodka|whiskey|wine|cacao)": {"Literal": "sproke"},
-    }
+                // misc
+                "(?:visitor|guest|assistant)": {"Literal": "lurker"},
+                "(?:man|lad)": {"Literal": "chud"},
+                "(?:men|lads|folk)": {"Literal": "chuds"},
+                "(?:guy|boy|[a-zA-Z]*jak)": {"Literal": "'jak"},
+                "(?:guy|boy|[a-zA-Z]*jak)s": {"Literal": "'jaks"},
+                "(?:kid|child)": {"Literal": "chuddie"},
+                "(?:doc|doctor|cmo)": {"Any": [
+                    {"Literal": "Dr. Soyberg"},
+                    {"Literal": "sanitar"},
+                ]},
+                "though": {"Any": [
+                    {"Literal": "tho"},
+                    {"Literal": "thou"},
+                    {"Literal": "doe"},
+                    {"Literal": "dough"},
+                ]},
+                "(?:insane|mad)": {"Literal": "nuts"},
+                "excited": {"Literal": "jopping"},
+                "medbay": {"Literal": "mental asylum"},
+                "appeared": {"Literal": "dropped"},
+                "frog": {"Literal": "pepe"},
+                "feet": {"Literal": "cheese"},
+                "comics?": {"Literal": "'toss"},
+                "(?:fact|truth|true)s": {"Literal": "science"},
+                "(?:miscreant|weirdo|senile|deranged)": {"Literal": "schizo"},
+                "dead": {"Literal": "brimstone"},
+                "sucks": {"Literal": "coal"},
+                "(?:boss|captain|chief|director)": {"Literal": "kuz"},
+                "brig": {"Literal": "the asoylum"},
+                "ssnt": {"Literal": "'station"},
+                "bats": {"Literal": "fingerboys"},
+                "swedish": {"Literal": "swede"},
+                "win": {"Literal": "swedish win"},
+                "jacob": {"Literal": "'cob"},
+                "jacobson": {"Literal": "'Cobson"},
+                "porn(ography)?": {"Literal": "'P"},
+                "(?:peace|subdue)": {"Literal": "calm"},
+                "(?:surgery|heal|healing)": {"Literal": "BBC Therapy"},
+                "(?:pill|medication|atropine|fish oil|heparin|insulin|menthol|morphine)": {"Literal": "meds"},
+                // TODO: generate this from all drinks in game
+                "(?:water|absinthe|ale|amaretto|aloe juice|applejack|(apple|banana|berry|bungo|carrot|lemon|lime|orange|parship|peach|pineapple|plum|tomato|watermelon) juice|beer|bitters|champagne|clown's tears|coffee|cognac|gin|milk|sake|soda|sol dry|soy milk|cola|tea|tequila|vermonth|vodka|whiskey|wine|cacao)": {"Literal": "sproke"},
+            },
+        ),
+    ],
 )

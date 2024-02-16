@@ -1,29 +1,19 @@
-use crate::{
-    accent::Accent,
-    intensity::{Intensity, IntensityBody},
-    tag::{Any, AnyError, Tag, Weights, WeightsError},
-    utils::LiteralString,
-};
+use crate::utils::runtime_format_single_value;
+use std::fmt;
 
-use std::{collections::BTreeMap, fmt, marker::PhantomData, sync::OnceLock};
-
-use regex::Regex;
 use serde::{
     de::{self, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
 
-impl<'de> Deserialize<'de> for LiteralString {
-    fn deserialize<D>(deserializer: D) -> Result<LiteralString, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: &str = Deserialize::deserialize(deserializer)?;
+use crate::{
+    accent::Accent,
+    intensity::Intensity,
+    pass::Pass,
+    tag::{Any, AnyError, Tag, Weights, WeightsError},
+};
 
-        Ok(Self::from(s))
-    }
-}
-
+// this is not strictly nescessary but implemented manually for consistent serde error message
 impl<'de> Deserialize<'de> for Any {
     fn deserialize<D>(deserializer: D) -> Result<Any, D::Error>
     where
@@ -37,276 +27,243 @@ impl<'de> Deserialize<'de> for Any {
     }
 }
 
-struct WeightsVisitor {}
-
-impl WeightsVisitor {
-    fn new() -> Self {
-        Self {}
-    }
-}
-
-impl<'de> Visitor<'de> for WeightsVisitor {
-    type Value = Weights;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("weights: `1: Tag`")
-    }
-
-    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
-    where
-        M: MapAccess<'de>,
-    {
-        let mut data = Vec::with_capacity(access.size_hint().unwrap_or(0));
-
-        while let Some((key, value)) = access.next_entry()? {
-            data.push((key, value));
-        }
-
-        Weights::new(data).map_err(|err| match err {
-            WeightsError::ZeroItems => de::Error::invalid_length(0, &"at least one element"),
-            WeightsError::NonPositiveTotalWeights => {
-                de::Error::custom("weights must add up to positive number")
-            }
-        })
-    }
-}
-
+// deserialize weights as map u64 -> Tag
 impl<'de> Deserialize<'de> for Weights {
     fn deserialize<D>(deserializer: D) -> Result<Weights, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_map(WeightsVisitor::new())
-    }
-}
+        struct WeightsVisitor;
 
-impl<'de> Deserialize<'de> for WordRegex {
-    fn deserialize<D>(deserializer: D) -> Result<WordRegex, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: String = Deserialize::deserialize(deserializer)?;
+        impl<'de> Visitor<'de> for WeightsVisitor {
+            type Value = Weights;
 
-        Self::try_from(s).map_err(de::Error::custom)
-    }
-}
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("weights: `1: Tag`")
+            }
 
-impl<'de> Deserialize<'de> for PatternRegex {
-    fn deserialize<D>(deserializer: D) -> Result<PatternRegex, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: String = Deserialize::deserialize(deserializer)?;
+            fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let mut data = Vec::with_capacity(access.size_hint().unwrap_or(0));
 
-        Self::try_from(s).map_err(de::Error::custom)
-    }
-}
+                while let Some((key, value)) = access.next_entry()? {
+                    data.push((key, value));
+                }
 
-#[derive(Debug)]
-struct WordRegex(Regex);
-
-#[derive(Debug)]
-struct PatternRegex(Regex);
-
-static REGEX_FLAGS_REGEX: OnceLock<Regex> = OnceLock::new();
-
-impl TryFrom<String> for WordRegex {
-    type Error = String;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        let regex_flags = if s.chars().all(|c| c.is_ascii_lowercase()) {
-            "mi"
-        } else {
-            "m"
-        };
-
-        // a hack to extract regex flags from words. they do not work since they would be placed
-        // after \b without this
-        let flags_regex =
-            REGEX_FLAGS_REGEX.get_or_init(|| Regex::new(r"^(:?\(\?-?[a-zA-Z]+\))+").unwrap());
-
-        let (maybe_regex_flags_from_string, s) = match flags_regex.captures(&s) {
-            Some(caps) => (caps.get(0).unwrap().as_str(), flags_regex.replace(&s, "")),
-            None => ("", s.into()),
-        };
-
-        Ok(Self(
-            Regex::new(&format!(
-                r"(?{regex_flags}){maybe_regex_flags_from_string}\b{s}\b"
-            ))
-            .map_err(|err| err.to_string())?,
-        ))
-    }
-}
-
-impl TryFrom<String> for PatternRegex {
-    type Error = String;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        let regex_flags = if s.chars().all(|c| c.is_ascii_lowercase()) {
-            "mi"
-        } else {
-            "m"
-        };
-
-        Ok(Self(
-            Regex::new(&format!(r"(?{regex_flags}){s}")).map_err(|err| err.to_string())?,
-        ))
-    }
-}
-
-/// Deserializes as map but is actually a vec of (K, V) to preserve order
-struct RuleMap<T> {
-    ordered: Vec<(T, Box<dyn Tag>)>,
-}
-
-impl<T> Default for RuleMap<T> {
-    fn default() -> Self {
-        Self::with_capacity(0)
-    }
-}
-
-impl<T> RuleMap<T> {
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            ordered: Vec::with_capacity(capacity),
-        }
-    }
-}
-
-struct RuleMapVisitor<T> {
-    marker: PhantomData<fn() -> RuleMap<T>>,
-}
-
-impl<T> RuleMapVisitor<T> {
-    fn new() -> Self {
-        Self {
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<'de, T> Visitor<'de> for RuleMapVisitor<T>
-where
-    T: Deserialize<'de>,
-{
-    type Value = RuleMap<T>;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str(r#"rule map: `"regex": Tag`"#)
-    }
-
-    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
-    where
-        M: MapAccess<'de>,
-    {
-        let mut map = RuleMap::with_capacity(access.size_hint().unwrap_or(0));
-
-        while let Some((key, value)) = access.next_entry()? {
-            map.ordered.push((key, value));
+                Weights::new(data).map_err(|err| match err {
+                    WeightsError::ZeroItems => {
+                        de::Error::invalid_length(0, &"at least one element")
+                    }
+                    WeightsError::NonPositiveTotalWeights => {
+                        de::Error::custom("weights must add up to positive number")
+                    }
+                })
+            }
         }
 
-        Ok(map)
+        deserializer.deserialize_map(WeightsVisitor)
     }
 }
 
-impl<'de, T> Deserialize<'de> for RuleMap<T>
-where
-    T: Deserialize<'de>,
-{
+// deserializes like map but is a vec
+struct RuleMap(Vec<(String, Box<dyn Tag>)>);
+
+impl<'de> Deserialize<'de> for RuleMap {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_map(RuleMapVisitor::new())
+        struct RuleMapVisitor;
+
+        impl<'de> Visitor<'de> for RuleMapVisitor {
+            type Value = RuleMap;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("rules: `regex: Tag`")
+            }
+
+            fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let mut data = Vec::with_capacity(access.size_hint().unwrap_or(0));
+                let mut seen_regexes = Vec::with_capacity(data.capacity());
+
+                while let Some((regex, tag)) = access.next_entry::<String, Box<dyn Tag>>()? {
+                    let regex_str = regex.as_str().to_owned();
+                    if seen_regexes.contains(&regex_str) {
+                        return Err(de::Error::custom(format!("duplicated regex: {regex_str}")));
+                    }
+                    seen_regexes.push(regex_str);
+
+                    data.push((regex, tag));
+                }
+
+                Ok(RuleMap(data))
+            }
+        }
+
+        deserializer.deserialize_map(RuleMapVisitor)
     }
 }
 
-// this exists separately and not flattened because ron does not support serde(flatten)
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct IntensityBodyDef {
-    #[serde(default)]
-    words: RuleMap<WordRegex>,
-    #[serde(default)]
-    patterns: RuleMap<PatternRegex>,
+fn default_pass_format() -> String {
+    "{}".to_owned()
 }
 
-impl From<IntensityBodyDef> for IntensityBody {
-    fn from(intensity_def: IntensityBodyDef) -> Self {
-        Self {
-            words: intensity_def
-                .words
-                .ordered
-                .into_iter()
-                .map(|(regex, tag)| (regex.0, tag))
-                .collect(),
-            patterns: intensity_def
-                .patterns
-                .ordered
-                .into_iter()
-                .map(|(regex, tag)| (regex.0, tag))
-                .collect(),
+#[derive(Deserialize)]
+pub(crate) struct PassDef {
+    name: String,
+    #[serde(default = "default_pass_format")]
+    format: String,
+    rules: RuleMap,
+}
+
+impl TryFrom<PassDef> for Pass {
+    type Error = String;
+
+    fn try_from(value: PassDef) -> Result<Self, Self::Error> {
+        let mut rules = value.rules.0;
+
+        for rule in rules.iter_mut() {
+            rule.0 = runtime_format_single_value(&value.format, &rule.0)?;
         }
+
+        Self::new(&value.name, rules)
+    }
+}
+
+#[derive(Deserialize)]
+enum IntensityDef {
+    Replace(Vec<Pass>),
+    Extend(Vec<Pass>),
+}
+
+#[derive(Default)]
+struct IntensitiesDef(Vec<(u64, IntensityDef)>);
+
+impl<'de> Deserialize<'de> for IntensitiesDef {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct IntensitiesVisitor;
+
+        impl<'de> Visitor<'de> for IntensitiesVisitor {
+            type Value = IntensitiesDef;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("intensities: `1: Intensity`")
+            }
+
+            fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let mut intensities: Vec<(u64, IntensityDef)> =
+                    Vec::with_capacity(access.size_hint().unwrap_or(0));
+
+                while let Some((level, intensity)) = access.next_entry()? {
+                    if level == 0 {
+                        return Err(de::Error::custom("intensity cannot be 0"));
+                    }
+
+                    for (seen_level, _) in &intensities {
+                        if seen_level == &level {
+                            return Err(de::Error::custom(format!(
+                                "duplicate intensity level: {seen_level}"
+                            )));
+                        }
+
+                        let passes = match &intensity {
+                            IntensityDef::Replace(passes) | IntensityDef::Extend(passes) => passes,
+                        };
+
+                        let mut seen_passes = Vec::with_capacity(passes.len());
+                        for pass in passes {
+                            if seen_passes.contains(&pass.name) {
+                                return Err(de::Error::custom(format!(
+                                    "duplicate pass name: {}",
+                                    pass.name
+                                )));
+                            }
+                            seen_passes.push(pass.name.clone());
+                        }
+                    }
+                    if intensities.iter().any(|(l, _)| l == &level) {
+                        return Err(de::Error::duplicate_field("intensity"));
+                    }
+
+                    if let Some(last) = intensities.last() {
+                        if last.0 > level {
+                            return Err(de::Error::custom(format!(
+                                "intensities out of order: {} > {}",
+                                last.0, level
+                            )));
+                        }
+                    }
+
+                    intensities.push((level, intensity));
+                }
+
+                Ok(IntensitiesDef(intensities))
+            }
+        }
+
+        deserializer.deserialize_map(IntensitiesVisitor)
     }
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct AccentDef {
+    accent: Vec<Pass>,
     #[serde(default)]
-    words: RuleMap<WordRegex>,
-    #[serde(default)]
-    patterns: RuleMap<PatternRegex>,
-    #[serde(default)]
-    intensities: BTreeMap<u64, Intensity>,
+    intensities: IntensitiesDef,
 }
 
 impl TryFrom<AccentDef> for Accent {
-    type Error = &'static str;
+    type Error = String;
 
     fn try_from(accent_def: AccentDef) -> Result<Self, Self::Error> {
-        if accent_def.intensities.contains_key(&0) {
-            return Err("intensity cannot be 0 since 0 is base one");
+        let mut intensities: Vec<Intensity> =
+            Vec::with_capacity(accent_def.intensities.0.len() + 1);
+
+        intensities.push(Intensity::new(0, accent_def.accent));
+
+        for (i, (level, intensity)) in accent_def.intensities.0.into_iter().enumerate() {
+            let intensity = match intensity {
+                IntensityDef::Replace(passes) => Intensity::new(level, passes),
+                IntensityDef::Extend(passes) => intensities[i].extend(level, passes)?,
+            };
+
+            intensities.push(intensity);
         }
 
-        Ok(Self::new(
-            accent_def
-                .words
-                .ordered
-                .into_iter()
-                .map(|(regex, tag)| (regex.0, tag))
-                .collect(),
-            accent_def
-                .patterns
-                .ordered
-                .into_iter()
-                .map(|(regex, tag)| (regex.0, tag))
-                .collect(),
-            accent_def.intensities,
-        ))
+        Self::new(intensities)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use regex::Regex;
-
     use crate::{
-        deserialize::WordRegex,
-        rule::Rule,
+        intensity::Intensity,
+        pass::{Match, Pass},
         tag::{Any, Literal, Original, Tag, Weights},
         Accent,
     };
 
     #[test]
     fn ron_minimal() {
-        let _ = ron::from_str::<Accent>("()").unwrap();
+        let _ = ron::from_str::<Accent>("(accent: [])").unwrap();
     }
 
     #[test]
     fn ron_empty() {
-        let _ = ron::from_str::<Accent>(r#"(words: {}, patterns: {}, intensities: {})"#).unwrap();
+        let _ = ron::from_str::<Accent>(r#"(accent: [(name: "", rules: {})], intensities: {})"#)
+            .unwrap();
     }
 
     #[test]
@@ -314,63 +271,67 @@ mod tests {
         let parsed = ron::from_str::<Accent>(
             r#"
 (
-    words: {"a": {"Original": ()}},
-    patterns: {"1": {"Original": ()}},
-    intensities: {
-        1: Extend(
-            (
-                words: {"b": {"Original": ()}},
-                patterns: {"2": {"Original": ()}},
-            )
-
+    accent: [
+        (
+            name: "words",
+            format: r"\b{}\b",
+            rules: {"a": {"Original": ()}},
         ),
+        (
+            name: "patterns",
+            rules: {"1": {"Original": ()}},
+        ),
+    ],
+    intensities: {
+        1: Extend([
+            (
+                name: "words",
+                format: r"\b{}\b",
+                rules: {"b": {"Original": ()}},
+            ),
+            (
+                name: "patterns",
+                rules: {"2": {"Original": ()}},
+            ),
+        ]),
     },
 )
 "#,
         )
         .unwrap();
 
-        let manual = Accent {
-            intensities: vec![
-                (
-                    0,
-                    vec![
-                        Rule {
-                            source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                        Rule {
-                            source: Regex::new("(?m)1").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                    ],
-                ),
-                (
-                    1,
-                    vec![
-                        Rule {
-                            source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?mi)\bb\b").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                        Rule {
-                            source: Regex::new("(?m)1").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                        Rule {
-                            source: Regex::new("(?m)2").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                    ],
-                ),
-            ],
-        };
+        let manual = vec![
+            Intensity::new(
+                0,
+                vec![
+                    Pass::new("words", vec![(r"\ba\b", Original::new_boxed())]).unwrap(),
+                    Pass::new("patterns", vec![("1", Original::new_boxed())]).unwrap(),
+                ],
+            ),
+            Intensity::new(
+                1,
+                vec![
+                    Pass::new(
+                        "words",
+                        vec![
+                            (r"\ba\b", Original::new_boxed()),
+                            (r"\bb\b", Original::new_boxed()),
+                        ],
+                    )
+                    .unwrap(),
+                    Pass::new(
+                        "patterns",
+                        vec![("1", Original::new_boxed()), ("2", Original::new_boxed())],
+                    )
+                    .unwrap(),
+                ],
+            ),
+        ];
 
-        assert_eq!(parsed, manual);
-        assert_eq!(parsed.intensities(), manual.intensities());
+        let accent = Accent::new(manual).unwrap();
+
+        assert_eq!(parsed, accent);
+        assert_eq!(parsed.intensities(), accent.intensities());
     }
 
     #[test]
@@ -378,97 +339,77 @@ mod tests {
         let parsed = ron::from_str::<Accent>(
             r#"
 (
-    words: {"a": {"Original": ()}},
-    patterns: {"1": {"Original": ()}},
+    accent: [
+        (
+            name: "words",
+            format: r"\b{}\b",
+            rules: {"a": {"Original": ()}},
+        ),
+        (
+            name: "patterns",
+            rules: {"1": {"Original": ()}},
+        ),
+    ],
     intensities: {
-        1: Replace((
-            words: {"b": {"Original": ()}},
-            patterns: {"2": {"Original": ()}},
-        )),
+        1: Replace([
+            (
+                name: "words",
+                format: r"\b{}\b",
+                rules: {"b": {"Original": ()}},
+            ),
+            (
+                name: "patterns",
+                rules: {"2": {"Original": ()}},
+            ),
+        ]),
     },
 )
 "#,
         )
         .unwrap();
 
-        let manual = Accent {
-            intensities: vec![
-                (
-                    0,
-                    vec![
-                        Rule {
-                            source: Regex::new(r"(?mi)\ba\b").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                        Rule {
-                            source: Regex::new("(?m)1").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                    ],
-                ),
-                (
-                    1,
-                    vec![
-                        Rule {
-                            source: Regex::new(r"(?mi)\bb\b").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                        Rule {
-                            source: Regex::new("(?m)2").unwrap(),
-                            tag: Original::new_boxed(),
-                        },
-                    ],
-                ),
-            ],
-        };
+        let intensities = vec![
+            Intensity::new(
+                0,
+                vec![
+                    Pass::new("words", vec![(r"\ba\b", Original::new_boxed())]).unwrap(),
+                    Pass::new("patterns", vec![("1", Original::new_boxed())]).unwrap(),
+                ],
+            ),
+            Intensity::new(
+                1,
+                vec![
+                    Pass::new("words", vec![(r"\bb\b", Original::new_boxed())]).unwrap(),
+                    Pass::new("patterns", vec![("2", Original::new_boxed())]).unwrap(),
+                ],
+            ),
+        ];
+
+        let manual = Accent::new(intensities).unwrap();
 
         assert_eq!(parsed, manual);
     }
 
     #[test]
     fn ron_invalid_tag_any() {
-        let empty = ron::from_str::<Accent>(
-            r#"
-(
-    patterns: {
-        "a": {"Any": []}
-    }
-)
-"#,
-        )
-        .err()
-        .unwrap();
+        let empty = ron::from_str::<Any>("[]").err().unwrap();
         assert_eq!(
             empty.code.to_string(),
-            "invalid length 0, expected at least one element"
+            "Expected at least one element but found zero elements instead"
         );
     }
 
     #[test]
     fn ron_invalid_tag_weighted() {
-        let empty = ron::from_str::<Accent>(
-            r#"
-(
-    patterns: {
-        "a": {"Weights": {}}
-    }
-)
-"#,
-        )
-        .err()
-        .unwrap();
+        let empty = ron::from_str::<Weights>("{}").err().unwrap();
 
-        let zero_sum = ron::from_str::<Accent>(
+        let zero_sum = ron::from_str::<Weights>(
             r#"
-(
-    patterns: {
-        "a": {"Weights": {
-            0: {"Original": ()},
-            0: {"Original": ()},
-            0: {"Original": ()},
-        }},
-    }
-)
+{
+    0: {"Original": ()},
+    0: {"Original": ()},
+    0: {"Original": ()},
+},
 "#,
         )
         .err()
@@ -486,17 +427,6 @@ mod tests {
     }
 
     #[test]
-    fn ron_intensity_starts_from_0() {
-        assert!(
-            ron::from_str::<Accent>(r#"(intensities: { 0: Extend(()) })"#)
-                .err()
-                .unwrap()
-                .to_string()
-                .contains("intensity cannot be 0")
-        );
-    }
-
-    #[test]
     fn ron_malformed() {
         assert!(ron::from_str::<Accent>(r#"("borken..."#).is_err());
     }
@@ -505,175 +435,185 @@ mod tests {
     fn ron_all_features() {
         let ron_string = r#"
 (
-    words: {
-        "test": {"Literal": "Testing in progress; Please ignore ..."},
-        "badword": {"Literal": ""},
-        "dupe": {"Literal": "0"},
-    },
-    patterns: {
-        // lowercase letters are replaced with e
-        "[a-z]": {"Literal": "e"},
-        // uppercase letters are replaced with 50% uppercase "E" and 10% for each of the cursed "E"
-        "[A-Z]": {"Weights": {
-            5: {"Literal": "E"},
-            1: {"Literal": "Ē"},
-            1: {"Literal": "Ê"},
-            1: {"Literal": "Ë"},
-            1: {"Literal": "È"},
-            1: {"Literal": "É"},
-        }},
-        // numbers are replaced with 6 or 9 or are left untouched
-        // excessive nesting that does nothing
-        "[0-9]": {"Any": [
-            {"Weights": {
-                1: {"Any": [
-                      {"Literal": "6"},
-                      {"Literal": "9"},
-                      {"Original": ()},
+    accent: [
+        (
+            name: "words",
+            format: r"\b{}\b",
+            rules: {
+                "test": {"Literal": "Testing in progress; Please ignore ..."},
+                "badword": {"Literal": ""},
+                "dupe": {"Literal": "0"},
+            },
+        ),
+        (
+            name: "patterns",
+            rules: {
+                // lowercase letters are replaced with e
+                "[a-z]": {"Literal": "e"},
+                // uppercase letters are replaced with 50% uppercase "E" and 10% for each of the cursed "E"
+                "[A-Z]": {"Weights": {
+                    5: {"Literal": "E"},
+                    1: {"Literal": "Ē"},
+                    1: {"Literal": "Ê"},
+                    1: {"Literal": "Ë"},
+                    1: {"Literal": "È"},
+                    1: {"Literal": "É"},
+                }},
+                // numbers are replaced with 6 or 9 or are left untouched
+                // excessive nesting that does nothing
+                "[0-9]": {"Any": [
+                    {"Weights": {
+                        1: {"Any": [
+                              {"Literal": "6"},
+                              {"Literal": "9"},
+                              {"Original": ()},
+                        ]},
+                    }},
                 ]},
-            }},
-        ]},
-    },
+            },
+        ),
+    ],
     intensities: {
-        1: Replace((
-            words: {
-                "replaced": {"Literal": "words"},
-                "dupe": {"Literal": "1"},
-                "Windows": {"Literal": "Linux"},
-            },
-            patterns: {
-                "a+": {"Literal": "multiple A's"},
-                "^": {"Literal": "start"},
-            },
-        )),
-        2: Extend((
-            words: {
-                "dupe": {"Literal": "2"},
-                "added": {"Literal": "words"},
-            },
-            patterns: {
-                "b+": {"Literal": "multiple B's"},
-                "$": {"Literal": "end"},
-            },
-        )),
+        1: Replace([
+            (
+                name: "words",
+                format: r"\b{}\b",
+                rules: {
+                    "replaced": {"Literal": "words"},
+                    "dupe": {"Literal": "1"},
+                    "Windows": {"Literal": "Linux"},
+                },
+            ),
+            (
+                name: "patterns",
+                rules: {
+                    "a+": {"Literal": "multiple A's"},
+                    "^": {"Literal": "start"},
+                },
+            ),
+        ]),
+        2: Extend([
+            (
+                name: "words",
+                format: r"\b{}\b",
+                rules: {
+                    "dupe": {"Literal": "2"},
+                    "added": {"Literal": "words"},
+                },
+            ),
+            (
+                name: "patterns",
+                rules: {
+                    "b+": {"Literal": "multiple B's"},
+                    "$": {"Literal": "end"},
+                },
+            ),
+        ]),
     },
 )
 "#;
 
         let parsed = ron::from_str::<Accent>(ron_string).unwrap();
-        let manual = Accent {
-            intensities: vec![
-                (
-                    0,
-                    vec![
-                        Rule {
-                            source: Regex::new(r"(?mi)\btest\b").unwrap(),
-                            tag: Literal::new_boxed("Testing in progress; Please ignore ..."),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?mi)\bbadword\b").unwrap(),
-                            tag: Literal::new_boxed(""),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            tag: Literal::new_boxed("0"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)[a-z]").unwrap(),
-                            tag: Literal::new_boxed("e"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)[A-Z]").unwrap(),
-                            tag: Weights::new_boxed(vec![
-                                (5, Literal::new_boxed("E")),
-                                (1, Literal::new_boxed("Ē")),
-                                (1, Literal::new_boxed("Ê")),
-                                (1, Literal::new_boxed("Ë")),
-                                (1, Literal::new_boxed("È")),
-                                (1, Literal::new_boxed("É")),
-                            ])
-                            .unwrap(),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)[0-9]").unwrap(),
-                            tag: Any::new_boxed(vec![Weights::new_boxed(vec![(
-                                1,
-                                Any::new_boxed(vec![
-                                    Literal::new_boxed("6"),
-                                    Literal::new_boxed("9"),
-                                    Original::new_boxed(),
+        let intensities = vec![
+            Intensity::new(
+                0,
+                vec![
+                    Pass::new(
+                        "words",
+                        vec![
+                            (
+                                r"\btest\b",
+                                Literal::new_boxed("Testing in progress; Please ignore ..."),
+                            ),
+                            (r"\bbadword\b", Literal::new_boxed("")),
+                            (r"\bdupe\b", Literal::new_boxed("0")),
+                        ],
+                    )
+                    .unwrap(),
+                    Pass::new(
+                        "patterns",
+                        vec![
+                            (r"[a-z]", Literal::new_boxed("e")),
+                            (
+                                r"[A-Z]",
+                                Weights::new_boxed(vec![
+                                    (5, Literal::new_boxed("E")),
+                                    (1, Literal::new_boxed("Ē")),
+                                    (1, Literal::new_boxed("Ê")),
+                                    (1, Literal::new_boxed("Ë")),
+                                    (1, Literal::new_boxed("È")),
+                                    (1, Literal::new_boxed("É")),
                                 ])
                                 .unwrap(),
-                            )])
-                            .unwrap()])
-                            .unwrap(),
-                        },
-                    ],
-                ),
-                (
-                    1,
-                    vec![
-                        Rule {
-                            source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            tag: Literal::new_boxed("words"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            tag: Literal::new_boxed("1"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            tag: Literal::new_boxed("Linux"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)a+").unwrap(),
-                            tag: Literal::new_boxed("multiple A's"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)^").unwrap(),
-                            tag: Literal::new_boxed("start"),
-                        },
-                    ],
-                ),
-                (
-                    2,
-                    vec![
-                        Rule {
-                            source: Regex::new(r"(?mi)\breplaced\b").unwrap(),
-                            tag: Literal::new_boxed("words"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?mi)\bdupe\b").unwrap(),
-                            tag: Literal::new_boxed("2"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)\bWindows\b").unwrap(),
-                            tag: Literal::new_boxed("Linux"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?mi)\badded\b").unwrap(),
-                            tag: Literal::new_boxed("words"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)a+").unwrap(),
-                            tag: Literal::new_boxed("multiple A's"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)^").unwrap(),
-                            tag: Literal::new_boxed("start"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)b+").unwrap(),
-                            tag: Literal::new_boxed("multiple B's"),
-                        },
-                        Rule {
-                            source: Regex::new(r"(?m)$").unwrap(),
-                            tag: Literal::new_boxed("end"),
-                        },
-                    ],
-                ),
-            ],
-        };
+                            ),
+                            (
+                                r"[0-9]",
+                                Any::new_boxed(vec![Weights::new_boxed(vec![(
+                                    1,
+                                    Any::new_boxed(vec![
+                                        Literal::new_boxed("6"),
+                                        Literal::new_boxed("9"),
+                                        Original::new_boxed(),
+                                    ])
+                                    .unwrap(),
+                                )])
+                                .unwrap()])
+                                .unwrap(),
+                            ),
+                        ],
+                    )
+                    .unwrap(),
+                ],
+            ),
+            Intensity::new(
+                1,
+                vec![
+                    Pass::new(
+                        "words",
+                        vec![
+                            (r"\breplaced\b", Literal::new_boxed("words")),
+                            (r"\bdupe\b", Literal::new_boxed("1")),
+                            (r"\bWindows\b", Literal::new_boxed("Linux")),
+                        ],
+                    )
+                    .unwrap(),
+                    Pass::new(
+                        "patterns",
+                        vec![
+                            (r"a+", Literal::new_boxed("multiple A's")),
+                            (r"^", Literal::new_boxed("start")),
+                        ],
+                    )
+                    .unwrap(),
+                ],
+            ),
+            Intensity::new(
+                2,
+                vec![
+                    Pass::new(
+                        "words",
+                        vec![
+                            (r"\breplaced\b", Literal::new_boxed("words")),
+                            (r"\bdupe\b", Literal::new_boxed("2")),
+                            (r"\bWindows\b", Literal::new_boxed("Linux")),
+                            (r"\badded\b", Literal::new_boxed("words")),
+                        ],
+                    )
+                    .unwrap(),
+                    Pass::new(
+                        "patterns",
+                        vec![
+                            (r"a+", Literal::new_boxed("multiple A's")),
+                            (r"^", Literal::new_boxed("start")),
+                            (r"b+", Literal::new_boxed("multiple B's")),
+                            (r"$", Literal::new_boxed("end")),
+                        ],
+                    )
+                    .unwrap(),
+                ],
+            ),
+        ];
+        let manual = Accent::new(intensities).unwrap();
         assert_eq!(manual, parsed);
 
         // TODO: either patch rand::thread_rng somehow or change interface to pass rng directly?
@@ -684,42 +624,35 @@ mod tests {
     }
 
     #[test]
-    fn duplicates_eliminated() {
-        let parsed = ron::from_str::<Accent>(
+    fn pass_duplicated_regexes_now_allowed() {
+        let err = ron::from_str::<Pass>(
             r#"
 (
-    words: {
+    name: "somename",
+    rules: {
         "dupew": {"Literal": "0"},
         "dupew": {"Literal": "1"},
         "dupew": {"Literal": "2"},
-    },
-    patterns: {
-        "dupep": {"Literal": "0"},
-        "dupep": {"Literal": "1"},
-        "dupep": {"Literal": "2"},
-    },
+    }
 )
 "#,
         )
+        .err()
         .unwrap();
 
-        let manual = Accent {
-            intensities: vec![(
-                0,
-                vec![
-                    Rule {
-                        source: Regex::new(r"(?mi)\bdupew\b").unwrap(),
-                        tag: Literal::new_boxed("2"),
-                    },
-                    Rule {
-                        source: Regex::new(r"(?mi)dupep").unwrap(),
-                        tag: Literal::new_boxed("2"),
-                    },
-                ],
-            )],
-        };
+        assert_eq!(err.code.to_string(), "duplicated regex: dupew");
+    }
 
-        assert_eq!(parsed, manual);
+    #[test]
+    fn intensity_0_not_allowed() {
+        assert_eq!(
+            ron::from_str::<Accent>(r#"(accent: [], intensities: { 0: Extend([]) })"#)
+                .err()
+                .unwrap()
+                .code
+                .to_string(),
+            "intensity cannot be 0"
+        );
     }
 
     #[test]
@@ -727,14 +660,28 @@ mod tests {
         let accent = ron::from_str::<Accent>(
             r#"
 (
-    words: {"intensity": {"Literal": "0"}},
+    accent: [
+        (
+            name: "words",
+            format: r"\b{}\b",
+            rules: {"intensity": {"Literal": "0"}},
+        ),
+    ],
     intensities: {
-        1: Replace((
-            words: {"intensity": {"Literal": "1"}},
-        )),
-        5: Replace((
-            words: {"intensity": {"Literal": "5"}},
-        )),
+        1: Replace([
+            (
+                name: "words",
+                format: r"\b{}\b",
+                rules: {"intensity": {"Literal": "1"}},
+            ),
+        ]),
+        5: Replace([
+            (
+                name: "words",
+                format: r"\b{}\b",
+                rules: {"intensity": {"Literal": "5"}},
+            ),
+        ]),
     },
 )
 "#,
@@ -756,12 +703,8 @@ mod tests {
 
         #[typetag::deserialize]
         impl Tag for Increment {
-            fn generate<'a>(
-                &self,
-                caps: &regex::Captures,
-                input: &'a str,
-            ) -> std::borrow::Cow<'a, str> {
-                let input = self.current_match(caps, input);
+            fn generate<'a>(&self, m: &Match<'a>) -> std::borrow::Cow<'a, str> {
+                let input = m.get_match();
 
                 let input_number: i64 = match input.parse() {
                     Ok(parsed) => parsed,
@@ -778,24 +721,19 @@ mod tests {
         let accent = ron::from_str::<Accent>(
             r#"
 (
-    patterns: {
-        r"\d+": {"Increment": (101)},
-    }
+    accent: [
+        (
+            name: "patterns",
+            rules: {
+                r"\d+": {"Increment": (101)},
+            },
+        ),
+    ]
 )
 "#,
         )
         .unwrap();
 
         assert_eq!(accent.say_it("565 0", 0), "666 101");
-    }
-
-    #[test]
-    fn regex_flags_are_moved_in_word_regex() {
-        let s = "(?i)(?U)(?-Ri)(dw)test".to_owned();
-
-        assert_eq!(
-            WordRegex::try_from(s).unwrap().0.as_str(),
-            r"(?m)(?i)(?U)(?-Ri)\b(dw)test\b"
-        );
     }
 }

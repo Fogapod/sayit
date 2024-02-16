@@ -1,5 +1,10 @@
 (
-    patterns: {
-        r"\w+": {"Upper": {"Upper": {"Upper": {"Upper": {"Upper": {"Original": ()}}}}}},
-    },
+    accent: [
+        (
+            name: "",
+            rules: {
+                r"\w+": {"Upper": {"Upper": {"Upper": {"Upper": {"Upper": {"Original": ()}}}}}},
+            },
+        ),
+    ]
 )

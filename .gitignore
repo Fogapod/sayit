@@ -3,4 +3,5 @@ Cargo.lock
 
 # flamegraph script
 perf.data
+perf.data.old
 flamegraph.svg

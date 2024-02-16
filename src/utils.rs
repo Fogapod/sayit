@@ -1,22 +1,30 @@
 use std::sync::OnceLock;
 
-use regex::Regex;
+use regex_automata::meta::Regex;
 
 /// Wrapper around string, precomputing some metadata to speed up operations
 ///
 /// NOTE: this is very expensive to initialyze
 #[doc(hidden)] // pub for bench
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(from = "&str")
+)]
 pub struct LiteralString {
     pub(crate) body: String,
     // templating is expensive, it is important to skip it if possible
     pub(crate) has_template: bool,
     // saves time in mimic_case
     char_count: usize,
-    is_ascii_only: bool,
     is_ascii_lowercase: bool,
-    is_ascii_uppercase: bool,
-    is_ascii_mixed_case: bool,
+}
+
+impl PartialEq for LiteralString {
+    fn eq(&self, other: &Self) -> bool {
+        self.body == other.body
+    }
 }
 
 fn case(char_count: usize, string: &str) -> (bool, bool, bool) {
@@ -39,19 +47,16 @@ static TEMPLATE_REGEX: OnceLock<Regex> = OnceLock::new();
 impl From<&str> for LiteralString {
     fn from(body: &str) -> Self {
         let char_count = body.chars().count();
-        let is_ascii_only = body.is_ascii();
 
-        let (is_ascii_lowercase, is_ascii_uppercase, is_ascii_mixed_case) = case(char_count, body);
+        let (is_ascii_lowercase, _is_ascii_uppercase, _is_ascii_mixed_case) =
+            case(char_count, body);
 
         Self {
             body: body.to_owned(),
             char_count,
-            is_ascii_only,
             is_ascii_lowercase,
-            is_ascii_uppercase,
-            is_ascii_mixed_case,
             has_template: TEMPLATE_REGEX
-                // https://docs.rs/regex/latest/regex/struct.Captures.html#method.expand
+                // https://docs.rs/regex-automata/latest/regex_automata/util/interpolate/index.html
                 // this is not 100% accurate but should never result in false negatives
                 .get_or_init(|| Regex::new(r"(^|[^$])\$([0-9A-Za-z_]|\{.+?\})").unwrap())
                 .is_match(body),
@@ -102,6 +107,58 @@ impl LiteralString {
     }
 }
 
+// replaces a SINGLE REQUIRED "{}" template in string. braces can be escaped by doubling "{{" "}}"
+pub(crate) fn runtime_format_single_value(template: &str, value: &str) -> Result<String, String> {
+    let mut result = String::new();
+
+    let mut formatted = false;
+    let mut previous = None;
+
+    for (i, c) in template.chars().enumerate() {
+        match c {
+            '{' => {
+                if let Some('{') = previous {
+                    result.push('{');
+                    previous = None
+                } else {
+                    previous = Some('{')
+                }
+            }
+            '}' => match (previous, formatted) {
+                (Some('{'), true) => return Err(format!("unmatched '{{' at position {i}")),
+                (Some('{'), false) => {
+                    result.push_str(value);
+                    formatted = true;
+                    previous = None;
+                }
+                (Some('}'), _) => {
+                    if let Some('}') = previous {
+                        result.push('}');
+                        previous = None
+                    } else {
+                        previous = Some('}')
+                    }
+                }
+                (None, _) => previous = Some('}'),
+                (Some(_), _) => unreachable!(),
+            },
+            _ => {
+                if let Some(previous) = previous {
+                    return Err(format!("unmatched '{previous}' at position {i}"));
+                }
+
+                result.push(c);
+            }
+        }
+    }
+
+    if !formatted {
+        return Err("string did not contain {} template".to_owned());
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,26 +181,11 @@ mod tests {
     }
 
     #[test]
-    fn string_detects_ascii_only() {
-        assert_eq!(LiteralString::from("Hello").is_ascii_only, true);
-        assert_eq!(LiteralString::from("1!@$#$").is_ascii_only, true);
-        assert_eq!(LiteralString::from("Привет").is_ascii_only, false);
-    }
-
-    #[test]
     fn string_detects_ascii_lowercase() {
         assert_eq!(LiteralString::from("hello").is_ascii_lowercase, true);
         assert_eq!(LiteralString::from("Hello").is_ascii_lowercase, false);
         assert_eq!(LiteralString::from("1!@$#$").is_ascii_lowercase, false);
         assert_eq!(LiteralString::from("привет").is_ascii_lowercase, false);
-    }
-
-    #[test]
-    fn string_detects_ascii_uppercase() {
-        assert_eq!(LiteralString::from("HELLO").is_ascii_uppercase, true);
-        assert_eq!(LiteralString::from("Hello").is_ascii_uppercase, false);
-        assert_eq!(LiteralString::from("1!@$#$").is_ascii_uppercase, false);
-        assert_eq!(LiteralString::from("ПРИВЕТ").is_ascii_uppercase, false);
     }
 
     #[test]
@@ -189,5 +231,30 @@ mod tests {
         );
         assert_eq!(LiteralString::from("bye").mimic_ascii_case("hI!"), "bYe");
         assert_eq!(LiteralString::from("Bye").mimic_ascii_case("hI!"), "Bye");
+    }
+
+    #[test]
+    fn runtime_format_formats() {
+        assert_eq!(runtime_format_single_value("{}", "1").unwrap(), "1");
+        assert_eq!(runtime_format_single_value(" {}", "2").unwrap(), " 2");
+        assert_eq!(runtime_format_single_value("{} ", "3").unwrap(), "3 ");
+    }
+
+    #[test]
+    fn runtime_format_escapes() {
+        assert_eq!(
+            runtime_format_single_value("}} {{{}}}", "1").unwrap(),
+            "} {1}"
+        );
+    }
+
+    #[test]
+    fn runtime_format_requires_replacement() {
+        assert!(runtime_format_single_value("hello {{", "world").is_err());
+    }
+
+    #[test]
+    fn runtime_format_one_replacement() {
+        assert!(runtime_format_single_value("hello {} {}", "world").is_err());
     }
 }

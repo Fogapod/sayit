@@ -16,16 +16,19 @@
 //!
 //! # Accent
 //!
-//! [`Accent`] is a collection of rules that define speech accent. Rule is a pair of regex and tag.
-//! Deserialization is currently the only way to create it.
+//! [`Accent`] is an array of [`Pass`] named blocks. Each block consists of rules. Regexes inside
+//! [`Pass`] are compiled into a single big regex which allows walking haystack only once but
+//! sometimes is not enough. For this reason you can define multiple separate ones.
 //!
 //! This library defines a rule layout that should make it easy to define speech accent. It does
 //! the following:
 //!
-//! * defines `patterns` - a list of pairs regex -> tag
-//! * defines `words` - same as `patterns` except regexes are automatically surrounded by `\b`
+//! * defines `rules` - a list of passes
 //! * allows adding or replacing existing rules for higher intensities of accent
 //! * executes rules for matching severity group sequentially from top to bottom
+//!
+//! Intensities is a way to make accent worse. You can override certain rules or replace everything
+//! completely.
 //!
 //! See `examples` folder, specifically `example.ron` for full reference.
 //!
@@ -42,10 +45,10 @@
 //! * [`Weights`] selects random inner tag based on relative weights
 //! * [`Upper`] converts inner result to uppercase
 //! * [`Lower`] converts inner result to lowercase
-//! * [`Template`] enables templating for inner type
-//! * [`NoTemplate`] disables templating for inner type
-//! * [`MimicCase`] enables case mimicking for inner type
-//! * [`NoMimicCase`] disables case mimicking for inner type
+//! * [`Template`] enables templating for inner tag
+//! * [`NoTemplate`] disables templating for inner tag
+//! * [`MimicCase`] enables case mimicking for inner tag
+//! * [`NoMimicCase`] disables case mimicking for inner tag
 //! * [`Concat`] runs left and right inner tags and adds them together
 //!
 //! # Implementing Tag trait
@@ -56,6 +59,7 @@
 //! use sayit::{
 //!     tag::Tag,
 //!     Accent,
+//!     Match,
 //! };
 //!
 //! // Deserialize is only required with `deserialize` crate feature
@@ -67,19 +71,11 @@
 //! // `typetag` is only required with `deserialize` crate feature
 //! #[typetag::deserialize]
 //! impl Tag for StringCase {
-//!     // 'a is source text lifetime
-//!     fn generate<'a>(
-//!         &self,
-//!         // Regex capture
-//!         caps: &regex::Captures,
-//!         // Entire source text. This is required because of regex crate lifetime limitation:
-//!         // <https://github.com/rust-lang/regex/issues/777>. It will be removed after regex 2.0
-//!         input: &'a str,
-//!     ) -> std::borrow::Cow<'a, str> {
+//!     fn generate<'a>(&self, m: &Match<'a>) -> std::borrow::Cow<'a, str> {
 //!         if self.0 {
-//!             self.current_match(caps, input).to_uppercase()
+//!             m.get_match().to_uppercase()
 //!         } else {
-//!             self.current_match(caps, input).to_lowercase()
+//!             m.get_match().to_lowercase()
 //!         }.into()
 //!     }
 //! }
@@ -88,10 +84,15 @@
 //! let accent = ron::from_str::<Accent>(
 //!     r#"
 //! (
-//!     patterns: {
-//!         "a": {"StringCase": true},
-//!         "b": {"StringCase": false},
-//!     }
+//!     accent: [
+//!         (
+//!             name: "patterns",
+//!             rules: {
+//!                 "a": {"StringCase": true},
+//!                 "b": {"StringCase": false},
+//!             }
+//!         ),
+//!     ]
 //! )
 //! "#,
 //! )
@@ -115,6 +116,9 @@
 //! `cli` | required to run CLI tool | no
 //!
 //! [`Tag`]: crate::tag::Tag
+//! [`Pass`]: crate::pass::Pass
+//! [`Match`]: crate::Match
+//! [`Intensity`]: crate::intensity::Intensity
 //! [`Original`]: crate::tag::Original
 //! [`Literal`]: crate::tag::Literal
 //! [`Any`]: crate::tag::Any
@@ -129,7 +133,7 @@
 
 mod accent;
 mod intensity;
-mod rule;
+mod pass;
 
 // pub for bench
 #[doc(hidden)]
@@ -140,3 +144,5 @@ mod deserialize;
 
 pub mod tag;
 pub use accent::Accent;
+pub use intensity::Intensity;
+pub use pass::{Match, Pass};

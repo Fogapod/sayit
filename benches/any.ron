@@ -1,77 +1,82 @@
 (
-    patterns: {
-        // highly nested
-        "a": {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-            {"Any": [
-                {"Original": ()},
-            ]},
-            ]},
-            ]},
-            ]},
-            ]},
-            ]},
-            ]},
-            ]},
-        ]},
-        // many items
-        "o": {"Any": [
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-            {"Original": ()},
-        ]},
-    },
+    accent: [
+        (
+            name: "",
+            rules: {
+                // highly nested
+                "a": {"Any": [
+                    {"Any": [
+                    {"Any": [
+                    {"Any": [
+                    {"Any": [
+                    {"Any": [
+                    {"Any": [
+                    {"Any": [
+                    {"Any": [
+                        {"Original": ()},
+                    ]},
+                    ]},
+                    ]},
+                    ]},
+                    ]},
+                    ]},
+                    ]},
+                    ]},
+                ]},
+                // many items
+                "o": {"Any": [
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                    {"Original": ()},
+                ]},
+            },
+        ),
+    ],
 )

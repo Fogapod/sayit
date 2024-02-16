@@ -1,5 +1,10 @@
 (
-    patterns: {
-        r"\w+": {"Lower": {"Lower": {"Lower": {"Lower": {"Lower": {"Original": ()}}}}}},
-    },
+    accent: [
+        (
+            name: "",
+            rules: {
+                r"\w+": {"Lower": {"Lower": {"Lower": {"Lower": {"Lower": {"Original": ()}}}}}},
+            },
+        ),
+    ]
 )

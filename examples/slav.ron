@@ -1,46 +1,58 @@
 (
-    words: {
-        "my": {"Literal": "our"},
-        "friend": {"Literal": "comrade"},
-        "(enemy|foe)": {"Literal": "american pig"},
-        "(fuck|shit)": {"Any": [
-            {"Literal": "blyat"},
-            {"Literal": "cyka"},
-        ]},
-        "usa": {"Literal": "американские захватчики"},
-        "we are being attacked": {"Literal": "нас атакуют"},
-    },
-    patterns: {
-        r"\b(a|the) +": {"Weights": {
-            1: {"Original": ()},
-            1: {"Literal": ""},
-        }},
-        r"\bha": {"Literal": "ga"},
-        "th": {"Any": [
-            {"Literal": "z"},
-            {"Literal": "g"},
-        ]},
-        r"\Bo?u": {"Any": [
-            {"Literal": "a"},
-            {"Literal": "oo"},
-        ]},
-        "w": {"Literal": "v"},
-        "$": {"Weights": {
-            1: {"Original": ()},
-            1: {"Any": [
-                {"Literal": "cyka"},
-                {"Literal": "blyat"},
-            ]},
-        }},
-    },
-    intensities: {
-        1: Extend((
-            patterns: {
-                "$": {"Any": [
-                    {"Literal": "cyka"},
+    accent: [
+        (
+            name: "words",
+            format: r"\b{}\b",
+            rules: {
+                "my": {"Literal": "our"},
+                "friend": {"Literal": "comrade"},
+                "(enemy|foe)": {"Literal": "american pig"},
+                "(fuck|shit)": {"Any": [
                     {"Literal": "blyat"},
+                    {"Literal": "cyka"},
                 ]},
+                "usa": {"Literal": "американские захватчики"},
+                "we are being attacked": {"Literal": "нас атакуют"},
             },
-        )),
+        ),
+        (
+            name: "patterns",
+            rules: {
+                r"\b(a|the) +": {"Weights": {
+                    1: {"Original": ()},
+                    1: {"Literal": ""},
+                }},
+                r"\bha": {"Literal": "ga"},
+                "th": {"Any": [
+                    {"Literal": "z"},
+                    {"Literal": "g"},
+                ]},
+                r"\Bo?u": {"Any": [
+                    {"Literal": "a"},
+                    {"Literal": "oo"},
+                ]},
+                "w": {"Literal": "v"},
+                "$": {"Weights": {
+                    1: {"Original": ()},
+                    1: {"Any": [
+                        {"Literal": " cyka"},
+                        {"Literal": " blyat"},
+                    ]},
+                }},
+            },
+        ),
+    ],
+    intensities: {
+        1: Extend([
+            (
+                name: "patterns",
+                rules: {
+                    "$": {"Any": [
+                        {"Literal": " cyka"},
+                        {"Literal": " blyat"},
+                    ]},
+                },
+            ),
+        ]),
     }
 )
