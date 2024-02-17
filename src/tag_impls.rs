@@ -53,18 +53,12 @@ impl Literal {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Literal {
     fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
-        let match_str = m.get_match();
-
         if self.0.has_template {
-            let mut dst = String::new();
+            let interpolated = m.interpolate(&self.0.body);
 
-            m.captures
-                .interpolate_string_into(m.input, &self.0.body, &mut dst);
-
-            let s = LiteralString::from(dst.as_str());
-            s.mimic_ascii_case(match_str)
+            m.mimic_ascii_case(&interpolated)
         } else {
-            self.0.mimic_ascii_case(match_str)
+            self.0.mimic_ascii_case(m.get_match())
         }
         .into()
     }

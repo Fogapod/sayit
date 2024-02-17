@@ -3,12 +3,9 @@ use crate::deserialize::PassDef;
 
 use std::{borrow::Cow, fmt};
 
-use regex_automata::{
-    meta::Regex,
-    util::{captures::Captures, syntax},
-};
+use regex_automata::{meta::Regex, util::syntax};
 
-use crate::tag::Tag;
+use crate::{tag::Tag, Match};
 
 /// A group of rules with their regexes combined into one
 #[derive(Clone)]
@@ -32,20 +29,6 @@ impl fmt::Debug for Pass {
             .field("patterns", &self.regexes)
             .field("tags", &self.tags)
             .finish()
-    }
-}
-
-/// Holds [`regex_automata::util::captures::Captures`] and full input
-#[derive(Debug)]
-pub struct Match<'a> {
-    pub captures: Captures,
-    pub input: &'a str,
-}
-
-impl<'a> Match<'a> {
-    /// Returns full match (regex group 0)
-    pub fn get_match(&self) -> &'a str {
-        &self.input[self.captures.get_match().expect("this matched").range()]
     }
 }
 
@@ -75,7 +58,6 @@ impl Pass {
         })
     }
 
-    // TODO
     pub(crate) fn extend(&self, other: Pass) -> Result<Self, String> {
         let mut existing_rules: Vec<_> = self
             .regexes

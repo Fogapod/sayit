@@ -250,10 +250,10 @@ impl TryFrom<AccentDef> for Accent {
 mod tests {
     use crate::{
         intensity::Intensity,
-        pass::{Match, Pass},
+        pass::Pass,
         tag::Tag,
         tag_impls::{Any, Literal, Original, Weights},
-        Accent,
+        Accent, Match,
     };
 
     #[test]

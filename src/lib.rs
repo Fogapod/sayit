@@ -125,6 +125,7 @@
 
 mod accent;
 mod intensity;
+mod r#match;
 mod pass;
 mod tag;
 pub mod tag_impls;
@@ -138,5 +139,6 @@ mod deserialize;
 
 pub use accent::Accent;
 pub use intensity::Intensity;
-pub use pass::{Match, Pass};
+pub use pass::Pass;
+pub use r#match::Match;
 pub use tag::Tag;
