@@ -22,12 +22,10 @@ Full reference:
 ```ron
 (
     // main list of passes
-    accent: [
+    accent: {
         // `words` are applied before `patterns`
-        (
-            // names must be unique. they are used if you want to extend accent
-            name: "words",
-
+        // pass names must be unique. they are used if you want to extend accent
+        "words": (
             // this optional field instructs all regexes inside this pass to be wrapped in \b
             format: r"\b{}\b",
 
@@ -48,8 +46,23 @@ Full reference:
                 r"(a)(?P<b_group>b)": {"Literal": "$b_group$a"},
             },
         ),
-        (
-            name: "patterns",
+
+        // second pass
+        "patterns": (
+            rules: {
+                // lowercases all `p` letters (use "p" match from `Original`, then lowercase)
+                // note that this will still be uppercase for single letter "P" match because of
+                // case mimicking. there is currently no way to disable it
+                "p": {"Lower": {"Original": ()}},
+
+                // uppercases all `m` letters, undoing previous operation
+                "m": {"Upper": {"Original": ()}},
+            },
+        ),
+
+        // third pass. note that ^ and $ will conflict with patterns at beginning and end of strings because of regex merging.
+        // these should be defined separately
+        "ending": (
             rules: {
                 // inserts one of the honks. first value of `Weights` is relative weight. higher is better
                 "$": {"Weights": {
@@ -59,15 +72,9 @@ Full reference:
                     // ultra rare sigma honk - 1 / 56
                     01: {"Literal": " HONK HONK HONK HONK!!!!!!!!!!!!!!!"},
                 }},
-
-                // lowercases all `p` letters (use "p" match from `Original`, then lowercase)
-                "p": {"Lower": {"Original": ()}},
-
-                // uppercases all `p` letters, undoing previous operation
-                "P": {"Upper": {"Original": ()}},
             },
         ),
-    ],
+    },
 
     // accent can be used with intensity (non negative value). higher intensities can either extend
     // lower level or completely replace it.
@@ -75,9 +82,8 @@ Full reference:
     intensities: {
         // extends previous intensity (level 0, base one in this case), adding additional rules
         // below existingones. passes keep their relative order, rules inside passes also preserve order
-        1: Extend([
-            (
-                name: "words",
+        1: Extend({
+            "words": (
                 format: r"\b{}\b",
                 rules: {
                     // even though we are extending, defining same rule will overwrite result.
@@ -85,8 +91,9 @@ Full reference:
                     "windows": {"Literal": "bloatware"},
                 },
             ),
-            (
-                // extend "patterns", adding 1 more rule
+
+            // extend "patterns", adding 1 more rule
+            "patterns": (
                 name: "patterns",
                 rules: {
                     // tags can be nested arbitrarily
@@ -105,10 +112,10 @@ Full reference:
                     }},
                 },
             ),
-        ]),
+        }),
 
         // replace intensity 1 entirely. in this case with nothing. remove all rules on intensity 2+
-        2: Replace([]),
+        2: Replace({}),
     },
 )
 ```
