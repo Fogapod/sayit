@@ -127,7 +127,7 @@ impl TryFrom<PassDef> for Pass {
     fn try_from(value: PassDef) -> Result<Self, Self::Error> {
         let mut rules = value.rules.0;
 
-        for rule in rules.iter_mut() {
+        for rule in &mut rules {
             rule.0 = runtime_format_single_value(&value.format, &rule.0)?;
         }
 

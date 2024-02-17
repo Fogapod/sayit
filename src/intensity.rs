@@ -23,7 +23,7 @@ impl Intensity {
         for new_pass in passes {
             let mut replaced = false;
 
-            for existing_pass in existing_passes.iter_mut() {
+            for existing_pass in &mut existing_passes {
                 if existing_pass.name == new_pass.name {
                     // FIXME: remove clone
                     *existing_pass = existing_pass.extend(new_pass.clone())?;

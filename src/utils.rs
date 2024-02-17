@@ -30,8 +30,8 @@ impl PartialEq for LiteralString {
 fn case(char_count: usize, string: &str) -> (bool, bool, bool) {
     let (lower, upper) = string.chars().fold((0, 0), |(lower, upper), c| {
         (
-            lower + c.is_ascii_lowercase() as usize,
-            upper + c.is_ascii_uppercase() as usize,
+            lower + usize::from(c.is_ascii_lowercase()),
+            upper + usize::from(c.is_ascii_uppercase()),
         )
     });
 
@@ -90,13 +90,13 @@ impl LiteralString {
 
             for (i, c_old) in source.chars().enumerate() {
                 if c_old.is_ascii_lowercase() {
-                    body.get_mut(i..i + 1)
+                    body.get_mut(i..=i)
                         .expect("strings have same len")
-                        .make_ascii_lowercase()
+                        .make_ascii_lowercase();
                 } else if c_old.is_ascii_uppercase() {
-                    body.get_mut(i..i + 1)
+                    body.get_mut(i..=i)
                         .expect("strings have same len")
-                        .make_ascii_uppercase()
+                        .make_ascii_uppercase();
                 }
             }
 

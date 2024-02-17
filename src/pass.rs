@@ -89,7 +89,7 @@ impl Pass {
         for (new_regex, new_tag) in other.regexes.into_iter().zip(other.tags.into_iter()) {
             let mut replaced = false;
 
-            for (existing_regex, existing_tag) in existing_rules.iter_mut() {
+            for (existing_regex, existing_tag) in &mut existing_rules {
                 if &new_regex == existing_regex {
                     // FIXME: remove clone
                     *existing_tag = new_tag.clone();
