@@ -119,9 +119,9 @@ pub(crate) fn runtime_format_single_value(template: &str, value: &str) -> Result
             '{' => {
                 if let Some('{') = previous {
                     result.push('{');
-                    previous = None
+                    previous = None;
                 } else {
-                    previous = Some('{')
+                    previous = Some('{');
                 }
             }
             '}' => match (previous, formatted) {
@@ -132,12 +132,8 @@ pub(crate) fn runtime_format_single_value(template: &str, value: &str) -> Result
                     previous = None;
                 }
                 (Some('}'), _) => {
-                    if let Some('}') = previous {
-                        result.push('}');
-                        previous = None
-                    } else {
-                        previous = Some('}')
-                    }
+                    result.push('}');
+                    previous = None;
                 }
                 (None, _) => previous = Some('}'),
                 (Some(_), _) => unreachable!(),
@@ -256,5 +252,11 @@ mod tests {
     #[test]
     fn runtime_format_one_replacement() {
         assert!(runtime_format_single_value("hello {} {}", "world").is_err());
+    }
+
+    #[test]
+    fn runtime_format_unmatched() {
+        assert!(runtime_format_single_value("}0", "world").is_err());
+        assert!(runtime_format_single_value("{0", "world").is_err());
     }
 }

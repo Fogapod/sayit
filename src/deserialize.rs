@@ -1,4 +1,4 @@
-use crate::utils::runtime_format_single_value;
+use crate::{tag::Tag, utils::runtime_format_single_value};
 use std::fmt;
 
 use serde::{
@@ -10,7 +10,7 @@ use crate::{
     accent::Accent,
     intensity::Intensity,
     pass::Pass,
-    tag::{Any, AnyError, Tag, Weights, WeightsError},
+    tag_impls::{Any, AnyError, Weights, WeightsError},
 };
 
 // this is not strictly nescessary but implemented manually for consistent serde error message
@@ -251,7 +251,8 @@ mod tests {
     use crate::{
         intensity::Intensity,
         pass::{Match, Pass},
-        tag::{Any, Literal, Original, Tag, Weights},
+        tag::Tag,
+        tag_impls::{Any, Literal, Original, Weights},
         Accent,
     };
 

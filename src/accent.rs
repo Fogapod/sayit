@@ -24,6 +24,20 @@ impl Accent {
             return Err("Expected at least a base intensity 0".to_owned());
         }
 
+        if intensities[0].level != 0 {
+            return Err("First intensity must have level 0".to_owned());
+        }
+
+        let mut seen = Vec::with_capacity(intensities.len());
+        seen.push(0);
+
+        for (i, intensity) in intensities[1..].iter().enumerate() {
+            if intensity.level <= seen[i] {
+                return Err(format!("Duplicated or out of order intensity level {i}"));
+            }
+            seen.push(intensity.level);
+        }
+
         Ok(Self { intensities })
     }
 
@@ -50,12 +64,7 @@ impl Accent {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        intensity::Intensity,
-        pass::Pass,
-        tag::{Literal, NoMimicCase},
-        Accent,
-    };
+    use crate::{intensity::Intensity, pass::Pass, tag_impls::Literal, Accent};
 
     #[test]
     fn e() {
@@ -64,14 +73,8 @@ mod tests {
             vec![Pass::new(
                 "",
                 vec![
-                    (
-                        "(?-i)[a-z]".to_owned(),
-                        NoMimicCase::new_boxed(Literal::new_boxed("e")),
-                    ),
-                    (
-                        "[A-Z]".to_owned(),
-                        NoMimicCase::new_boxed(Literal::new_boxed("E")),
-                    ),
+                    ("(?-i)[a-z]".to_owned(), Literal::new_boxed("e")),
+                    ("[A-Z]".to_owned(), Literal::new_boxed("E")),
                 ],
             )
             .unwrap()],
@@ -79,5 +82,28 @@ mod tests {
         let e = Accent::new(vec![base_intensity]).unwrap();
 
         assert_eq!(e.say_it("Hello World!", 0), "Eeeee Eeeee!");
+    }
+
+    #[test]
+    fn construction_error_empty_intensities() {
+        assert!(Accent::new(Vec::new()).is_err());
+    }
+
+    #[test]
+    fn construction_error_first_must_be_0() {
+        let intensities = vec![Intensity::new(12, Vec::new())];
+
+        assert!(Accent::new(intensities).is_err());
+    }
+
+    #[test]
+    fn construction_error_out_of_order() {
+        let intensities = vec![
+            Intensity::new(0, Vec::new()),
+            Intensity::new(3, Vec::new()),
+            Intensity::new(1, Vec::new()),
+        ];
+
+        assert!(Accent::new(intensities).is_err());
     }
 }

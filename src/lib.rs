@@ -37,7 +37,7 @@
 //! [`Tag`] is a core of this library. It is an extendable trait. After implementing it you
 //! can can parse it along default implementations and other ones.
 //!
-//! Default replacments are:
+//! Default replacments from [`tag_impls`] are:
 //!
 //! * [`Original`] does not replace (leaves original match as is)
 //! * [`Literal`] puts given string
@@ -45,10 +45,6 @@
 //! * [`Weights`] selects random inner tag based on relative weights
 //! * [`Upper`] converts inner result to uppercase
 //! * [`Lower`] converts inner result to lowercase
-//! * [`Template`] enables templating for inner tag
-//! * [`NoTemplate`] disables templating for inner tag
-//! * [`MimicCase`] enables case mimicking for inner tag
-//! * [`NoMimicCase`] disables case mimicking for inner tag
 //! * [`Concat`] runs left and right inner tags and adds them together
 //!
 //! # Implementing Tag trait
@@ -57,9 +53,9 @@
 //!
 //! ```rust
 //! use sayit::{
-//!     tag::Tag,
 //!     Accent,
 //!     Match,
+//!     Tag,
 //! };
 //!
 //! // Deserialize is only required with `deserialize` crate feature
@@ -115,25 +111,23 @@
 //! `deserialize` | enables deserialization for [`Tag`] trait | yes
 //! `cli` | required to run CLI tool | no
 //!
-//! [`Tag`]: crate::tag::Tag
+//! [`Tag`]: crate::Tag
 //! [`Pass`]: crate::pass::Pass
 //! [`Match`]: crate::Match
 //! [`Intensity`]: crate::intensity::Intensity
-//! [`Original`]: crate::tag::Original
-//! [`Literal`]: crate::tag::Literal
-//! [`Any`]: crate::tag::Any
-//! [`Weights`]: crate::tag::Weights
-//! [`Upper`]: crate::tag::Upper
-//! [`Lower`]: crate::tag::Lower
-//! [`Template`]: crate::tag::Template
-//! [`NoTemplate`]: crate::tag::NoTemplate
-//! [`MimicCase`]: crate::tag::MimicCase
-//! [`NoMimicCase`]: crate::tag::NoMimicCase
-//! [`Concat`]: crate::tag::Concat
+//! [`Original`]: crate::tag_impls::Original
+//! [`Literal`]: crate::tag_impls::Literal
+//! [`Any`]: crate::tag_impls::Any
+//! [`Weights`]: crate::tag_impls::Weights
+//! [`Upper`]: crate::tag_impls::Upper
+//! [`Lower`]: crate::tag_impls::Lower
+//! [`Concat`]: crate::tag_impls::Concat
 
 mod accent;
 mod intensity;
 mod pass;
+mod tag;
+pub mod tag_impls;
 
 // pub for bench
 #[doc(hidden)]
@@ -142,7 +136,7 @@ pub mod utils;
 #[cfg(feature = "deserialize")]
 mod deserialize;
 
-pub mod tag;
 pub use accent::Accent;
 pub use intensity::Intensity;
 pub use pass::{Match, Pass};
+pub use tag::Tag;

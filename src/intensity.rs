@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::pass::Pass;
 
 /// Holds [`Pass`] objects and applies them in order
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Intensity {
     pub(crate) level: u64,
@@ -52,7 +52,7 @@ impl Intensity {
 
 #[cfg(test)]
 mod tests {
-    use crate::{intensity::Intensity, pass::Pass, tag::Literal};
+    use crate::{intensity::Intensity, pass::Pass, tag_impls::Literal};
 
     #[test]
     fn rules_replaced() {
@@ -101,5 +101,21 @@ mod tests {
         .unwrap();
 
         assert_eq!(extended.passes, vec![expected]);
+    }
+
+    #[test]
+    fn passes_appended() {
+        let old_pass = Pass::new::<&str>("old", Vec::new()).unwrap();
+        let new_pass = Pass::new::<&str>("new", Vec::new()).unwrap();
+
+        let old = Intensity::new(0, vec![old_pass]);
+
+        let extended = old.extend(1, vec![new_pass]).unwrap();
+        let expected = vec![
+            Pass::new::<&str>("old", Vec::new()).unwrap(),
+            Pass::new::<&str>("new", Vec::new()).unwrap(),
+        ];
+
+        assert_eq!(extended.passes, expected);
     }
 }

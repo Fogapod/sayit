@@ -8,7 +8,7 @@ use regex_automata::{
     util::{captures::Captures, syntax},
 };
 
-use crate::tag::{Tag, TagOptions};
+use crate::tag::Tag;
 
 /// A group of rules with their regexes combined into one
 #[derive(Clone)]
@@ -123,13 +123,10 @@ impl Pass {
             let range = caps_match.range();
             let tag = &self.tags[caps_match.pattern()];
 
-            let repl = tag.apply_options(
-                &Match {
-                    captures: caps,
-                    input: text,
-                },
-                TagOptions::default(),
-            );
+            let repl = tag.generate(&Match {
+                captures: caps,
+                input: text,
+            });
 
             output.extend([&text[last_replacement..range.start], &repl]);
 
@@ -144,7 +141,7 @@ impl Pass {
 
 #[cfg(test)]
 mod tests {
-    use crate::{pass::Pass, tag::Literal};
+    use crate::{pass::Pass, tag_impls::Literal};
 
     impl PartialEq for Pass {
         fn eq(&self, other: &Self) -> bool {
