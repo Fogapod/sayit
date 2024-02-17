@@ -6,7 +6,7 @@ use dyn_clone::{clone_trait_object, DynClone};
 
 /// Receives match and provides replacement
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
-pub trait Tag: DynClone + Debug {
+pub trait Tag: DynClone + Debug + Send + Sync {
     /// Select suitable replacement
     ///
     /// caps is actual match
