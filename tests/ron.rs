@@ -28,6 +28,7 @@ fn ron_accents_work() {
             }
 
             println!("running {}", path.display());
+
             let accent = read_accent(path);
             for line in &lines {
                 for intensity in accent.intensities() {

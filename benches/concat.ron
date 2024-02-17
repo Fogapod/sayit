@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "",
+    accent: {
+        "": (
             rules: {
                 // use \w+ and \W+ to vary string lengths
                 r"\w+": {"Concat": (
@@ -14,5 +13,5 @@
                 )},
             },
         ),
-    ]
+    }
 )

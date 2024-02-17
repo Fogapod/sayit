@@ -1,10 +1,9 @@
 (
-    accent: [
-        (
-            name: "",
+    accent: {
+        "": (
             rules: {
                 r"\w+": {"Upper": {"Upper": {"Upper": {"Upper": {"Upper": {"Original": ()}}}}}},
             },
         ),
-    ]
+    }
 )

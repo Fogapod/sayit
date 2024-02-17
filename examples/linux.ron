@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "patterns",
+    accent: {
+        "main": (
             rules: {
                 "[rlv]": {"Literal": "w"},
                 "ove": {"Literal": "uv"},
@@ -11,6 +10,10 @@
                 "ne": {"Literal": "nye"},
                 "nu": {"Literal": "nyu"},
                 "!": {"Literal": "! owo"},
+            },
+        ),
+        "bounds": (
+            rules: {
                 // 10% for prefix
                 "^": {"Weights": {
                     1: {"Any": [
@@ -149,5 +152,5 @@
                 }},
             },
         ),
-    ]
+    }
 )

@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "words",
+    accent: {
+        "words": (
             format: r"\b{}\b",
             rules: {
                 "my": {"Literal": "our"},
@@ -15,7 +14,7 @@
                 "we are being attacked": {"Literal": "нас атакуют"},
             },
         ),
-        (
+        "patterns": (
             name: "patterns",
             rules: {
                 r"\b(a|the) +": {"Weights": {
@@ -41,11 +40,10 @@
                 }},
             },
         ),
-    ],
+    },
     intensities: {
-        1: Extend([
-            (
-                name: "patterns",
+        1: Extend({
+            "patterns": (
                 rules: {
                     "$": {"Any": [
                         {"Literal": " cyka"},
@@ -53,6 +51,6 @@
                     ]},
                 },
             ),
-        ]),
+        }),
     }
 )

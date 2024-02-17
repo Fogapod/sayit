@@ -1,12 +1,11 @@
 (
-    accent: [
-        (
-            name: "",
+    accent: {
+        "": (
             rules: {
                 // varying string lenghts
                 r"\w+": {"Original": ()},
                 r"\W+": {"Original": ()},
             },
         ),
-    ]
+    }
 )

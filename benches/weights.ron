@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "",
+    accent: {
+        "": (
             rules: {
                 "a": {"Weights": {1: {"Literal": "single"}}},
                 "o": {"Weights": {
@@ -29,5 +28,5 @@
                 }},
             },
         ),
-    ]
+    }
 )

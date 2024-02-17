@@ -80,15 +80,14 @@
 //! let accent = ron::from_str::<Accent>(
 //!     r#"
 //! (
-//!     accent: [
-//!         (
-//!             name: "patterns",
+//!     accent: {
+//!         "main": (
 //!             rules: {
 //!                 "a": {"StringCase": true},
 //!                 "b": {"StringCase": false},
 //!             }
 //!         ),
-//!     ]
+//!     }
 //! )
 //! "#,
 //! )

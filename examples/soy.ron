@@ -1,13 +1,11 @@
 (
-    accent: [
-        (
-            name: "pre",
+    accent: {
+        "pre": (
             rules: {
                 r"\bkill\s+(\w+)\b": {"Literal": "total $1 death"},
             },
         ),
-        (
-            name: "words",
+        "words": (
             format: r"\b{}\b",
             rules: {
                 // good
@@ -115,5 +113,5 @@
                 "(?:water|absinthe|ale|amaretto|aloe juice|applejack|(apple|banana|berry|bungo|carrot|lemon|lime|orange|parship|peach|pineapple|plum|tomato|watermelon) juice|beer|bitters|champagne|clown's tears|coffee|cognac|gin|milk|sake|soda|sol dry|soy milk|cola|tea|tequila|vermonth|vodka|whiskey|wine|cacao)": {"Literal": "sproke"},
             },
         ),
-    ],
+    },
 )

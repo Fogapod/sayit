@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "words",
+    accent: {
+        "main": (
             format: r"\b{}\b",
             rules: {
                 // duplicate words
@@ -23,11 +22,10 @@
                 }},
             },
         ),
-    ],
+    },
     intensities: {
-        1: Replace([
-            (
-                name: "words",
+        1: Replace({
+            "main": (
                 format: r"\b{}\b",
                 rules: {
                     r"\S+": {"Weights": {
@@ -50,10 +48,9 @@
                     }},
                 },
             ),
-        ]),
-        2: Replace([
-            (
-                name: "words",
+        }),
+        2: Replace({
+            "main": (
                 format: r"\b{}\b",
                 rules: {
                     r"\S+": {"Weights": {
@@ -79,6 +76,6 @@
                     }},
                 },
             ),
-        ]),
+        }),
     }
 )

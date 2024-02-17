@@ -1,7 +1,6 @@
 {
-    "accent": [
-        {
-            "name": "words",
+    "accent": {
+        "words": {
             "format": "\\b{}\\b",
             "rules": {
                 "epic": {"Literal": "ebin"},
@@ -12,8 +11,7 @@
                 ]}
             }
         },
-        {
-            "name": "patterns",
+        "patterns": {
             "rules": {
                 "xc": {"Literal": "gg"},
                 "c": {"Literal": "g"},
@@ -34,11 +32,10 @@
                 }}
             }
         }
-    ],
+    },
     "intensities": {
-        "1": {"Extend": [
-            {
-                "name": "words",
+        "1": {"Extend": {
+            "words": {
                 "format": "\\b{}\\b",
                 "rules": {
                     ":?\\]": {"Any": [
@@ -48,8 +45,7 @@
                     ]}
                 }
             },
-            {
-                "name": "patterns",
+            "patterns": {
                 "rules": {
                     "$": {"Weights": {
                         "1": {"Original": null},
@@ -63,10 +59,9 @@
                     }}
                 }
             }
-        ]},
-        "2": {"Extend": [
-            {
-                "name": "words",
+        }},
+        "2": {"Extend": {
+            "words": {
                 "format": "\\b{}\\b",
                 "rules": {
                     ":?\\]": {"Any": [
@@ -76,8 +71,7 @@
                     ]}
                 }
             },
-            {
-                "name": "patterns",
+            "patterns": {
                 "rules": {
                     "$": {"Any": [
                         {"Literal": " :DDDD"},
@@ -88,6 +82,6 @@
                     ]}
                 }
             }
-        ]}
+        }}
     }
 }

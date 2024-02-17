@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "words",
+    accent: {
+        "words": (
             format: r"\b{}\b",
             rules: {
                 // swap 2 words
@@ -11,8 +10,7 @@
                 }},
             },
         ),
-        (
-            name: "patterns",
+        "letters": (
             rules: {
                 // swap 2 letters
                 r"([a-zA-Z])([a-zA-Z])": {"Weights": {
@@ -21,11 +19,10 @@
                 }},
             },
         ),
-    ],
+    },
     intensities: {
-        1: Replace([
-            (
-                name: "words",
+        1: Replace({
+            "words": (
                 format: r"\b{}\b",
                 rules: {
                     r"(\w+)(\s+)(\w+)": {"Weights": {
@@ -34,8 +31,7 @@
                     }},
                 },
             ),
-            (
-                name: "patterns",
+            "letters": (
                 rules: {
                     r"([a-zA-Z])([a-zA-Z])": {"Weights": {
                         8: {"Original": ()},
@@ -43,10 +39,9 @@
                     }},
                 },
             ),
-        ]),
-        2: Replace([
-            (
-                name: "words",
+        }),
+        2: Replace({
+            "words": (
                 format: r"\b{}\b",
                 rules: {
                     r"(\w+)(\s+)(\w+)": {"Weights": {
@@ -55,8 +50,7 @@
                     }},
                 },
             ),
-            (
-                name: "patterns",
+            "letters": (
                 rules: {
                     r"([a-zA-Z])([a-zA-Z])": {"Weights": {
                         7: {"Original": ()},
@@ -64,6 +58,6 @@
                     }},
                 },
             ),
-        ]),
+        }),
     }
 )

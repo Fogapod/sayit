@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "patterns",
+    accent: {
+        "main": (
             rules: {
                 "$": {"Any": [
                     {"Literal": " HONK!"},
@@ -9,11 +8,10 @@
                 ]},
             },
         )
-    ],
+    },
     intensities: {
-        1: Extend([
-            (
-                name: "patterns",
+        1: Extend({
+            "main": (
                 rules: {
                     "$": {"Any": [
                         {"Literal": " HONK HONK!"},
@@ -21,10 +19,9 @@
                     ]},
                 },
             ),
-        ]),
-        2: Extend([
-            (
-                name: "patterns",
+        }),
+        2: Extend({
+            "main": (
                 rules: {
                     ".+": {"Upper": {"Original": ()}},
                     "$": {"Any": [
@@ -33,10 +30,9 @@
                     ]},
                 },
             ),
-        ]),
-        3: Extend([
-            (
-                name: "patterns",
+        }),
+        3: Extend({
+            "main": (
                 rules: {
                     "$": {"Any": [
                         {"Literal": " HONK HONK HONK HONK!"},
@@ -44,6 +40,6 @@
                     ]},
                 }
             ),
-        ]),
+        }),
     },
 )

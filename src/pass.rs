@@ -1,6 +1,3 @@
-#[cfg(feature = "deserialize")]
-use crate::deserialize::PassDef;
-
 use std::{borrow::Cow, fmt};
 
 use regex_automata::{meta::Regex, util::syntax};
@@ -9,11 +6,6 @@ use crate::{tag::Tag, Match};
 
 /// A group of rules with their regexes combined into one
 #[derive(Clone)]
-#[cfg_attr(
-    feature = "deserialize",
-    derive(serde::Deserialize),
-    serde(try_from = "PassDef")
-)]
 pub struct Pass {
     pub(crate) name: String,
     regexes: Vec<String>,

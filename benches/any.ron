@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "",
+    accent: {
+        "": (
             rules: {
                 // highly nested
                 "a": {"Any": [
@@ -78,5 +77,5 @@
                 ]},
             },
         ),
-    ],
+    },
 )

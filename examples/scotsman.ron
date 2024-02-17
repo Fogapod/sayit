@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "words",
+    accent: {
+        "words": (
             format: r"\b{}\b",
             rules: {
                 "above": {"Literal": "`boon"},
@@ -651,23 +650,25 @@
                 ]},
             },
         ),
-        (
-            name: "patterns",
+        "patterns": (
             rules: {
                 r"\bfuck": {"Literal": "fook"},
                 "h?ou": {"Literal": "oo"},
                 "ow": {"Literal": "ou"},
+            },
+        ),
+        "ending": (
+            rules: {
                 "$": {"Weights": {
                     2: {"Literal": " ye daft cunt"},
                     8: {"Original": ()},
                 }},
             },
         ),
-    ],
+    },
     intensities: {
-        1: Extend([
-            (
-                name: "patterns",
+        1: Extend({
+            "ending": (
                 rules: {
                     "$": {"Weights": {
                         1: {"Literal": " ye daft cunt"},
@@ -675,14 +676,13 @@
                     }},
                 },
             ),
-        ]),
-        2: Extend([
-            (
-                name: "patterns",
+        }),
+        2: Extend({
+            "ending": (
                 rules: {
                     "$": {"Literal": " ye daft cunt"},
                 },
             ),
-        ]),
+        }),
     }
 )

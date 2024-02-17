@@ -1,4 +1,7 @@
-use std::borrow::Cow;
+#[cfg(feature = "deserialize")]
+use crate::deserialize::SortedMap;
+
+use std::{borrow::Cow, fmt::Display};
 
 use rand::seq::SliceRandom;
 
@@ -101,21 +104,33 @@ impl Tag for Any {
 /// [`Weights`] creation might fail
 #[derive(Debug)]
 pub enum WeightsError {
-    /// Must provide at least one element
-    ZeroItems,
     /// Sum of all weights must be positive
     NonPositiveTotalWeights,
 }
 
+impl Display for WeightsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::NonPositiveTotalWeights => "Weights must add up to a positive number",
+            }
+        )
+    }
+}
+
 /// Selects any of nested items with relative probabilities
 #[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "deserialize",
+    derive(serde::Deserialize),
+    serde(try_from = "SortedMap<u64, Box<dyn Tag>, false>")
+)]
 pub struct Weights(Vec<(u64, Box<dyn Tag>)>);
 
 impl Weights {
     pub fn new(items: Vec<(u64, Box<dyn Tag>)>) -> Result<Self, WeightsError> {
-        if items.is_empty() {
-            return Err(WeightsError::ZeroItems);
-        }
         if items.iter().fold(0, |sum, (w, _)| sum + w) == 0 {
             return Err(WeightsError::NonPositiveTotalWeights);
         }

@@ -1,7 +1,6 @@
 (
-    accent: [
-        (
-            name: "words",
+    accent: {
+        "main": (
             format: r"\b{}\b",
             rules: {
                 "a": {"Any": [
@@ -24,8 +23,7 @@
                 "very": {"Literal": "très"},
                 "want": {"Literal": "vouloir"},
                 "with": {"Literal": "avec"},
-                "i'm": {"Literal": "je suis"},
-                "i am": {"Literal": "je suis"},
+                "i'?m": {"Literal": "je suis"},
                 "i": {"Literal": "je"},
                 "good": {"Literal": "bon"},
                 "bad": {"Literal": "mal"},
@@ -91,5 +89,5 @@
                 ]},
             },
         ),
-    ]
+    }
 )
