@@ -58,7 +58,7 @@ impl From<&str> for LiteralString {
             has_template: TEMPLATE_REGEX
                 // https://docs.rs/regex-automata/latest/regex_automata/util/interpolate/index.html
                 // this is not 100% accurate but should never result in false negatives
-                .get_or_init(|| Regex::new(r"(^|[^$])\$([0-9A-Za-z_]|\{.+?\})").unwrap())
+                .get_or_init(|| Regex::new(r"(:?^|[^$])\$(:?[0-9A-Za-z_]|\{.+?\})").unwrap())
                 .is_match(body),
         }
     }
