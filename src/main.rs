@@ -1,6 +1,6 @@
 use sayit::Accent;
 
-use std::{fs, io, path::PathBuf};
+use std::{borrow::Cow, fs, io, path::PathBuf};
 
 use clap::Parser;
 
@@ -9,34 +9,63 @@ use clap::Parser;
 struct Args {
     /// Read accent from file (currently only ron supported)
     #[arg(short, long, group = "accent_def")]
-    accent: Option<PathBuf>,
+    accent: Vec<PathBuf>,
 
     /// Read accent from stdin(currently only ron supported)
     #[arg(long, group = "accent_def")]
-    accent_string: Option<String>,
+    accent_string: Vec<String>,
 
     /// Set intensity
-    #[arg(short, long, default_value_t = 0)]
-    intensity: u64,
+    #[arg(short, long)]
+    intensity: Vec<u64>,
 }
 
 fn main() -> Result<(), String> {
     let args = Args::parse();
 
-    let accent_string = if let Some(accent) = args.accent {
-        fs::read_to_string(accent).map_err(|err| format!("reading accent file: {err}"))?
+    let accent_strings = if !args.accent.is_empty() {
+        let mut strs = Vec::with_capacity(args.accent.len());
+        for accent_path in args.accent {
+            strs.push(fs::read_to_string(&accent_path).map_err(|err| {
+                format!("reading accent {} file: {}", accent_path.display(), err)
+            })?);
+        }
+        strs
     } else {
         // TODO: figure out how to make clap group do the check
+        if args.accent_string.is_empty() {
+            return Err("expected either --accent or --accent-string".to_owned());
+        }
+
         args.accent_string
-            .ok_or_else(|| "expected either --accent or --accent-string")?
     };
 
-    let accent =
-        ron::from_str::<Accent>(&accent_string).map_err(|err| format!("parsing accent: {err}"))?;
+    let intensities = if args.intensity.is_empty() {
+        vec![0; accent_strings.len()]
+    } else {
+        args.intensity
+    };
+
+    if accent_strings.len() != intensities.len() {
+        return Err("different number of accents and intensities provided".to_owned());
+    }
+
+    let mut accents = Vec::with_capacity(accent_strings.len());
+    for accent_str in accent_strings {
+        accents.push(
+            ron::from_str::<Accent>(&accent_str).map_err(|err| format!("parsing accent: {err}"))?,
+        );
+    }
 
     for line in io::stdin().lines() {
-        let line = line.map_err(|err| format!("reading line: {err}"))?;
-        let applied = accent.say_it(&line, args.intensity);
+        let line = &line.map_err(|err| format!("reading line: {err}"))?;
+
+        let applied = accents
+            .iter()
+            .zip(intensities.iter())
+            .fold(Cow::Borrowed(line), |acc, (accent, &level)| {
+                Cow::Owned(accent.say_it(&acc, level).into_owned())
+            });
 
         println!("{applied}");
     }

@@ -38,12 +38,15 @@ impl Accent {
             seen.push(intensity.level);
         }
 
+        // reverse now to not reverse each time to find highest matching intensity
+        let intensities: Vec<_> = intensities.into_iter().rev().collect();
+
         Ok(Self { intensities })
     }
 
     /// Returns all registered intensities in ascending order. Note that there may be gaps
     pub fn intensities(&self) -> Vec<u64> {
-        self.intensities.iter().map(|i| i.level).collect()
+        self.intensities.iter().rev().map(|i| i.level).collect()
     }
 
     /// Walks rules for given intensity from top to bottom and applies them
@@ -54,7 +57,6 @@ impl Accent {
         let intensity = &self
             .intensities
             .iter()
-            .rev()
             .find(|i| i.level <= intensity)
             .expect("intensity 0 is always present");
 
