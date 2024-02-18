@@ -1,6 +1,7 @@
 mod utils;
 
 use sayit::Accent;
+use serde::Deserialize;
 use std::{fs, path::PathBuf};
 use utils::read_sample_file_lines;
 
@@ -8,6 +9,36 @@ pub fn read_accent(filename: PathBuf) -> Accent {
     let content = fs::read_to_string(&filename).unwrap();
     serde_json::from_str::<Accent>(&content)
         .expect(&format!("parsing accent {}", filename.display()))
+}
+
+// flatten breaks treating string map keys as u64 (ints are not allowed as json map keys)
+// https://github.com/serde-rs/serde/issues/1183
+#[test]
+#[should_panic(expected = "expected u64")]
+fn flatten_broken() {
+    #[derive(Deserialize)]
+    struct Wrapper {
+        #[serde(flatten)]
+        accent: Accent,
+    }
+
+    let accent = serde_json::from_str::<Wrapper>(
+        r#"
+{
+    "accent": {},
+    "intensities": {
+        "1": {"Extend": {
+            "main": {
+                "rules": {}
+            }
+        }}
+    }
+}
+"#,
+    )
+    .unwrap();
+
+    println!("{}", accent.accent.say_it("hello world", 0));
 }
 
 #[test]

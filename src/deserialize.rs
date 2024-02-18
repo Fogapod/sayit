@@ -1,8 +1,5 @@
 use crate::{tag::Tag, utils::runtime_format_single_value};
-use std::{
-    fmt::{self, Display},
-    marker::PhantomData,
-};
+use std::{fmt, marker::PhantomData};
 
 use serde::{
     de::{self, MapAccess, Visitor},
@@ -23,7 +20,7 @@ where
 
 impl<'de, K, V, const UNIQUE: bool> Deserialize<'de> for SortedMap<K, V, { UNIQUE }>
 where
-    K: Deserialize<'de> + PartialEq + Display,
+    K: Deserialize<'de> + PartialEq + fmt::Display,
     V: Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -32,12 +29,12 @@ where
     {
         struct SortedMapVisitor<K, V, const U: bool>
         where
-            K: PartialEq + Display,
+            K: PartialEq + fmt::Display,
         {
             marker: PhantomData<fn() -> SortedMap<K, V, { U }>>,
         }
 
-        impl<K: PartialEq + Display, V, const U: bool> SortedMapVisitor<K, V, U> {
+        impl<K: PartialEq + fmt::Display, V, const U: bool> SortedMapVisitor<K, V, U> {
             fn new() -> Self {
                 SortedMapVisitor {
                     marker: PhantomData,
@@ -47,7 +44,7 @@ where
 
         impl<'de, K, V, const UNIQUE: bool> Visitor<'de> for SortedMapVisitor<K, V, UNIQUE>
         where
-            K: Deserialize<'de> + PartialEq + Display,
+            K: Deserialize<'de> + PartialEq + fmt::Display,
             V: Deserialize<'de>,
         {
             type Value = SortedMap<K, V, { UNIQUE }>;
@@ -95,6 +92,8 @@ impl TryFrom<SortedMap<u64, Box<dyn Tag>, false>> for Weights {
     type Error = WeightsError;
 
     fn try_from(value: SortedMap<u64, Box<dyn Tag>, false>) -> Result<Self, Self::Error> {
+        // workaround for integer keys breaking when flattened:
+        // https://github.com/serde-rs/json/issues/560
         Self::new(value.0)
     }
 }
