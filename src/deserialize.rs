@@ -203,7 +203,6 @@ impl<'de> Deserialize<'de> for IntensitiesDef {
 }
 
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
 pub(crate) struct AccentDef {
     accent: Passes,
     #[serde(default)]
