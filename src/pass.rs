@@ -50,7 +50,7 @@ impl Pass {
         })
     }
 
-    pub(crate) fn extend(&self, other: Pass) -> Result<Self, String> {
+    pub fn extend(&self, other: Pass) -> Result<Self, String> {
         let mut existing_rules: Vec<_> = self
             .regexes
             .iter()
@@ -82,7 +82,7 @@ impl Pass {
         Self::new(&other.name, existing_rules)
     }
 
-    pub(crate) fn apply<'a>(&self, text: &'a str) -> Cow<'a, str> {
+    pub fn apply<'a>(&self, text: &'a str) -> Cow<'a, str> {
         let all_captures: Vec<_> = self.multi_regex.captures_iter(text).collect();
 
         if all_captures.is_empty() {

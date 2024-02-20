@@ -19,7 +19,7 @@ pub struct Accent {
 }
 
 impl Accent {
-    pub(crate) fn new(intensities: Vec<Intensity>) -> Result<Self, String> {
+    pub fn new(intensities: Vec<Intensity>) -> Result<Self, String> {
         if intensities.is_empty() {
             return Err("Expected at least a base intensity 0".to_owned());
         }
