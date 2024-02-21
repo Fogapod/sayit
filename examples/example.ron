@@ -35,8 +35,6 @@
         "patterns": (
             rules: {
                 // lowercases all `p` letters (use "p" match from `Original`, then lowercase)
-                // note that this will still be uppercase for single letter "P" match because of
-                // case mimicking. there is currently no way to disable it
                 "p": {"Lower": {"Original": ()}},
 
                 // uppercases all `m` letters, undoing previous operation

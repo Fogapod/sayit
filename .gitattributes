@@ -1,0 +1,2 @@
+# Ron language is not supported
+*.ron     linguist-language=Rust
