@@ -122,11 +122,11 @@
 //! [`Lower`]: crate::tag_impls::Lower
 //! [`Concat`]: crate::tag_impls::Concat
 
-mod accent;
-mod intensity;
-mod r#match;
-mod pass;
-mod tag;
+pub mod accent;
+pub mod intensity;
+pub mod r#match;
+pub mod pass;
+pub mod tag;
 pub mod tag_impls;
 
 // pub for bench

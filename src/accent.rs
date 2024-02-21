@@ -1,49 +1,43 @@
-#[cfg(feature = "deserialize")]
-use crate::deserialize::AccentDef;
-
 use crate::intensity::Intensity;
 
-use std::borrow::Cow;
+use std::{borrow::Cow, error::Error, fmt};
 
 /// Replaces patterns in text according to rules
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "deserialize",
-    derive(serde::Deserialize),
-    serde(try_from = "AccentDef")
-)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Accent {
     // a set of rules for each intensity level, sorted from lowest to highest
     pub(crate) intensities: Vec<Intensity>,
 }
 
-impl Accent {
-    pub fn new(intensities: Vec<Intensity>) -> Result<Self, String> {
-        if intensities.is_empty() {
-            return Err("Expected at least a base intensity 0".to_owned());
-        }
+#[derive(Debug, PartialEq)]
+pub enum CreationError {
+    IntensityZeroMissing,
+    FirstIntensityNotZero,
+    UnsortedOrDuplicatedIntensities(u64),
+}
 
-        if intensities[0].level != 0 {
-            return Err("First intensity must have level 0".to_owned());
-        }
-
-        let mut seen = Vec::with_capacity(intensities.len());
-        seen.push(0);
-
-        for (i, intensity) in intensities[1..].iter().enumerate() {
-            if intensity.level <= seen[i] {
-                return Err(format!("Duplicated or out of order intensity level {i}"));
+impl fmt::Display for CreationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CreationError::IntensityZeroMissing => {
+                write!(f, "expected at least a base intensity 0")
             }
-            seen.push(intensity.level);
+            CreationError::FirstIntensityNotZero => {
+                write!(f, "first intensity must have level 0")
+            }
+            CreationError::UnsortedOrDuplicatedIntensities(level) => write!(
+                f,
+                "{}",
+                format!("duplicated or out of order intensity level {level}")
+            ),
         }
-
-        // reverse now to not reverse each time to find highest matching intensity
-        let intensities: Vec<_> = intensities.into_iter().rev().collect();
-
-        Ok(Self { intensities })
     }
+}
 
+impl Error for CreationError {}
+
+impl Accent {
     /// Returns all registered intensities in ascending order. Note that there may be gaps
     pub fn intensities(&self) -> Vec<u64> {
         self.intensities.iter().rev().map(|i| i.level).collect()
@@ -64,9 +58,42 @@ impl Accent {
     }
 }
 
+impl TryFrom<Vec<Intensity>> for Accent {
+    type Error = CreationError;
+
+    fn try_from(intensities: Vec<Intensity>) -> Result<Self, Self::Error> {
+        if intensities.is_empty() {
+            return Err(CreationError::IntensityZeroMissing);
+        }
+
+        if intensities[0].level != 0 {
+            return Err(CreationError::FirstIntensityNotZero);
+        }
+
+        let mut seen = Vec::with_capacity(intensities.len());
+        seen.push(0);
+
+        for (i, intensity) in intensities[1..].iter().enumerate() {
+            if intensity.level <= seen[i] {
+                return Err(CreationError::UnsortedOrDuplicatedIntensities(
+                    intensity.level,
+                ));
+            }
+            seen.push(intensity.level);
+        }
+
+        // reverse now to not reverse each time to find highest matching intensity
+        let intensities: Vec<_> = intensities.into_iter().rev().collect();
+
+        Ok(Self { intensities })
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{intensity::Intensity, pass::Pass, tag_impls::Literal, Accent};
+    use crate::{
+        accent::CreationError, intensity::Intensity, pass::Pass, tag_impls::Literal, Accent,
+    };
 
     #[test]
     fn e() {
@@ -81,21 +108,27 @@ mod tests {
             )
             .unwrap()],
         );
-        let e = Accent::new(vec![base_intensity]).unwrap();
+        let e = Accent::try_from(vec![base_intensity]).unwrap();
 
         assert_eq!(e.say_it("Hello World!", 0), "Eeeee Eeeee!");
     }
 
     #[test]
     fn construction_error_empty_intensities() {
-        assert!(Accent::new(Vec::new()).is_err());
+        assert_eq!(
+            Accent::try_from(Vec::new()).err().unwrap(),
+            CreationError::IntensityZeroMissing
+        );
     }
 
     #[test]
     fn construction_error_first_must_be_0() {
         let intensities = vec![Intensity::new(12, Vec::new())];
 
-        assert!(Accent::new(intensities).is_err());
+        assert_eq!(
+            Accent::try_from(intensities).err().unwrap(),
+            CreationError::FirstIntensityNotZero
+        );
     }
 
     #[test]
@@ -106,6 +139,9 @@ mod tests {
             Intensity::new(1, Vec::new()),
         ];
 
-        assert!(Accent::new(intensities).is_err());
+        assert_eq!(
+            Accent::try_from(intensities).err().unwrap(),
+            CreationError::UnsortedOrDuplicatedIntensities(1)
+        );
     }
 }

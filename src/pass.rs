@@ -1,6 +1,9 @@
-use std::{borrow::Cow, fmt};
+use std::{borrow::Cow, error::Error, fmt};
 
-use regex_automata::{meta::Regex, util::syntax};
+use regex_automata::{
+    meta::{BuildError, Regex},
+    util::syntax,
+};
 
 use crate::{tag::Tag, Match};
 
@@ -24,8 +27,30 @@ impl fmt::Debug for Pass {
     }
 }
 
+#[derive(Debug)]
+pub enum CreationError {
+    BadRegex(BuildError),
+}
+
+impl fmt::Display for CreationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CreationError::BadRegex(err) => format!("regex combination failed: {err}"),
+            }
+        )
+    }
+}
+
+impl Error for CreationError {}
+
 impl Pass {
-    pub fn new<T: AsRef<str>>(name: &str, rules: Vec<(T, Box<dyn Tag>)>) -> Result<Self, String> {
+    pub fn new<T: AsRef<str>>(
+        name: &str,
+        rules: Vec<(T, Box<dyn Tag>)>,
+    ) -> Result<Self, CreationError> {
         let (patterns, tags): (Vec<_>, Vec<_>) = rules.into_iter().unzip();
 
         let patterns: Vec<_> = patterns
@@ -40,7 +65,7 @@ impl Pass {
                     .case_insensitive(true),
             )
             .build_many(&patterns)
-            .map_err(|err| format!("regex combination failed: {err}"))?;
+            .map_err(|err| CreationError::BadRegex(err))?;
 
         Ok(Self {
             name: name.to_owned(),
@@ -50,7 +75,7 @@ impl Pass {
         })
     }
 
-    pub fn extend(&self, other: Pass) -> Result<Self, String> {
+    pub fn extend(&self, other: Pass) -> Result<Self, CreationError> {
         let mut existing_rules: Vec<_> = self
             .regexes
             .iter()

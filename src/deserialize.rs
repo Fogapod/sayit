@@ -209,10 +209,13 @@ pub(crate) struct AccentDef {
     intensities: IntensitiesDef,
 }
 
-impl TryFrom<AccentDef> for Accent {
-    type Error = String;
+impl<'de> Deserialize<'de> for Accent {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let accent_def = AccentDef::deserialize(deserializer)?;
 
-    fn try_from(accent_def: AccentDef) -> Result<Self, Self::Error> {
         let mut intensities: Vec<Intensity> =
             Vec::with_capacity(accent_def.intensities.0.len() + 1);
 
@@ -221,13 +224,15 @@ impl TryFrom<AccentDef> for Accent {
         for (i, (level, intensity)) in accent_def.intensities.0.into_iter().enumerate() {
             let intensity = match intensity {
                 IntensityDef::Replace(passes) => Intensity::new(level, passes.0),
-                IntensityDef::Extend(passes) => intensities[i].extend(level, passes.0)?,
+                IntensityDef::Extend(passes) => intensities[i]
+                    .extend(level, passes.0)
+                    .map_err(de::Error::custom)?,
             };
 
             intensities.push(intensity);
         }
 
-        Self::new(intensities)
+        Self::try_from(intensities).map_err(de::Error::custom)
     }
 }
 
@@ -311,7 +316,7 @@ mod tests {
             ),
         ];
 
-        let accent = Accent::new(manual).unwrap();
+        let accent = Accent::try_from(manual).unwrap();
 
         assert_eq!(parsed, accent);
         assert_eq!(parsed.intensities(), accent.intensities());
@@ -364,7 +369,7 @@ mod tests {
             ),
         ];
 
-        let manual = Accent::new(intensities).unwrap();
+        let manual = Accent::try_from(intensities).unwrap();
 
         assert_eq!(parsed, manual);
     }
@@ -394,7 +399,7 @@ mod tests {
 
         assert_eq!(
             zero_sum.code.to_string(),
-            "Weights must add up to a positive number"
+            "weights must add up to a positive number"
         );
     }
 
@@ -579,7 +584,7 @@ mod tests {
                 ],
             ),
         ];
-        let manual = Accent::new(intensities).unwrap();
+        let manual = Accent::try_from(intensities).unwrap();
         assert_eq!(manual, parsed);
 
         // TODO: either patch rand::thread_rng somehow or change interface to pass rng directly?

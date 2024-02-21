@@ -1,7 +1,7 @@
 #[cfg(feature = "deserialize")]
 use crate::deserialize::SortedMap;
 
-use std::{borrow::Cow, fmt::Display};
+use std::{borrow::Cow, error::Error, fmt::Display};
 
 use rand::seq::SliceRandom;
 
@@ -74,6 +74,20 @@ pub enum AnyError {
     ZeroItems,
 }
 
+impl Display for AnyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::ZeroItems => "expected at least one element to choose from",
+            }
+        )
+    }
+}
+
+impl Error for AnyError {}
+
 /// Selects any of nested items with equal probabilities
 #[derive(Clone, Debug)]
 pub struct Any(Vec<Box<dyn Tag>>);
@@ -114,7 +128,7 @@ impl Display for WeightsError {
             f,
             "{}",
             match self {
-                Self::NonPositiveTotalWeights => "Weights must add up to a positive number",
+                Self::NonPositiveTotalWeights => "weights must add up to a positive number",
             }
         )
     }

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::pass::Pass;
+use crate::pass::{self, Pass};
 
 /// Holds [`Pass`] objects and applies them in order
 #[derive(Debug)]
@@ -16,7 +16,7 @@ impl Intensity {
     }
 
     /// Produces new instance by extending inner passes
-    pub fn extend(&self, level: u64, passes: Vec<Pass>) -> Result<Self, String> {
+    pub fn extend(&self, level: u64, passes: Vec<Pass>) -> Result<Self, pass::CreationError> {
         let mut existing_passes = self.passes.clone();
         let mut appended_passes = Vec::new();
 
@@ -105,15 +105,15 @@ mod tests {
 
     #[test]
     fn passes_appended() {
-        let old_pass = Pass::new::<&str>("old", Vec::new()).unwrap();
-        let new_pass = Pass::new::<&str>("new", Vec::new()).unwrap();
+        let old_pass = Pass::new("old", Vec::<(&str, _)>::new()).unwrap();
+        let new_pass = Pass::new("new", Vec::<(&str, _)>::new()).unwrap();
 
         let old = Intensity::new(0, vec![old_pass]);
 
         let extended = old.extend(1, vec![new_pass]).unwrap();
         let expected = vec![
-            Pass::new::<&str>("old", Vec::new()).unwrap(),
-            Pass::new::<&str>("new", Vec::new()).unwrap(),
+            Pass::new("old", Vec::<(&str, _)>::new()).unwrap(),
+            Pass::new("new", Vec::<(&str, _)>::new()).unwrap(),
         ];
 
         assert_eq!(extended.passes, expected);
