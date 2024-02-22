@@ -10,7 +10,6 @@ use crate::{tag::Tag, Match};
 /// A group of rules with their regexes combined into one
 #[derive(Clone)]
 pub struct Pass {
-    pub(crate) name: String,
     regexes: Vec<String>,
     tags: Vec<Box<dyn Tag>>,
     multi_regex: Regex,
@@ -19,39 +18,17 @@ pub struct Pass {
 // skips 20 pages of debug output of `multi_regex` field
 impl fmt::Debug for Pass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Pass")
-            .field("name", &self.name)
+        f.debug_struct("UnnamedPass")
             .field("patterns", &self.regexes)
             .field("tags", &self.tags)
             .finish()
     }
 }
 
-#[derive(Debug)]
-pub enum CreationError {
-    BadRegex(BuildError),
-}
-
-impl fmt::Display for CreationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                CreationError::BadRegex(err) => format!("regex combination failed: {err}"),
-            }
-        )
-    }
-}
-
-impl Error for CreationError {}
-
 impl Pass {
     #[allow(clippy::result_large_err)]
-    pub fn new(name: &str, rules: Vec<(String, Box<dyn Tag>)>) -> Result<Self, CreationError> {
+    pub fn new(rules: Vec<(String, Box<dyn Tag>)>) -> Result<Self, CreationError> {
         let (patterns, tags): (Vec<_>, Vec<_>) = rules.into_iter().unzip();
-
-        let patterns: Vec<_> = patterns.into_iter().map(|s| s.to_string()).collect();
 
         let multi_regex = Regex::builder()
             .syntax(
@@ -63,7 +40,6 @@ impl Pass {
             .map_err(CreationError::BadRegex)?;
 
         Ok(Self {
-            name: name.to_owned(),
             regexes: patterns,
             multi_regex,
             tags,
@@ -100,7 +76,7 @@ impl Pass {
 
         existing_rules.extend(appended_rules);
 
-        Self::new(&other.name, existing_rules)
+        Self::new(existing_rules)
     }
 
     pub fn apply<'a>(&self, text: &'a str) -> Cow<'a, str> {
@@ -134,37 +110,48 @@ impl Pass {
     }
 }
 
+#[derive(Debug)]
+pub enum CreationError {
+    BadRegex(BuildError),
+}
+
+impl fmt::Display for CreationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CreationError::BadRegex(err) => write!(f, "regex combination failed: {err}"),
+        }
+    }
+}
+
+impl Error for CreationError {}
+
 #[cfg(test)]
 mod tests {
-    use crate::{pass::Pass, tag_impls::Literal};
+    use crate::tag_impls::Literal;
+
+    use super::Pass;
 
     impl PartialEq for Pass {
         fn eq(&self, other: &Self) -> bool {
-            self.name == other.name && self.regexes == other.regexes && self.tags == other.tags
+            self.regexes == other.regexes && self.tags == other.tags
         }
     }
 
     #[test]
     fn rules_replaced() {
-        let old = Pass::new(
-            "",
-            vec![
-                ("old".to_string(), Literal::new_boxed("old")),
-                ("old2".to_string(), Literal::new_boxed("old2")),
-            ],
-        )
+        let old = Pass::new(vec![
+            ("old".to_string(), Literal::new_boxed("old")),
+            ("old2".to_string(), Literal::new_boxed("old2")),
+        ])
         .unwrap();
 
-        let new = Pass::new("", vec![("old".to_string(), Literal::new_boxed("new"))]).unwrap();
+        let new = Pass::new(vec![("old".to_string(), Literal::new_boxed("new"))]).unwrap();
 
         let extended = old.extend(new).unwrap();
-        let expected = Pass::new(
-            "",
-            vec![
-                ("old".to_string(), Literal::new_boxed("new")),
-                ("old2".to_string(), Literal::new_boxed("old2")),
-            ],
-        )
+        let expected = Pass::new(vec![
+            ("old".to_string(), Literal::new_boxed("new")),
+            ("old2".to_string(), Literal::new_boxed("old2")),
+        ])
         .unwrap();
 
         assert_eq!(extended, expected);
@@ -172,21 +159,14 @@ mod tests {
 
     #[test]
     fn rules_appended() {
-        let old = Pass::new(
-            "",
-            vec![("existing".to_string(), Literal::new_boxed("old"))],
-        )
-        .unwrap();
-        let new = Pass::new("", vec![("added".to_string(), Literal::new_boxed("new"))]).unwrap();
+        let old = Pass::new(vec![("existing".to_string(), Literal::new_boxed("old"))]).unwrap();
+        let new = Pass::new(vec![("added".to_string(), Literal::new_boxed("new"))]).unwrap();
 
         let extended = old.extend(new).unwrap();
-        let expected = Pass::new(
-            "",
-            vec![
-                ("existing".to_string(), Literal::new_boxed("old")),
-                ("added".to_string(), Literal::new_boxed("new")),
-            ],
-        )
+        let expected = Pass::new(vec![
+            ("existing".to_string(), Literal::new_boxed("old")),
+            ("added".to_string(), Literal::new_boxed("new")),
+        ])
         .unwrap();
 
         assert_eq!(extended, expected);

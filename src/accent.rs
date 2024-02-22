@@ -97,14 +97,14 @@ mod tests {
     fn e() {
         let base_intensity = Intensity::new(
             0,
-            vec![Pass::new(
-                "",
-                vec![
+            vec![(
+                "".to_owned(),
+                Pass::new(vec![
                     ("(?-i)[a-z]".to_string(), Literal::new_boxed("e")),
                     ("[A-Z]".to_string(), Literal::new_boxed("E")),
-                ],
-            )
-            .unwrap()],
+                ])
+                .unwrap(),
+            )],
         );
         let e = Accent::try_from(vec![base_intensity]).unwrap();
 

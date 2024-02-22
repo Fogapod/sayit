@@ -1,4 +1,4 @@
-use crate::{tag::Tag, utils::runtime_format_single_value};
+use crate::{pass::Pass, tag::Tag, utils::runtime_format_single_value};
 use std::{fmt, marker::PhantomData};
 
 use serde::{
@@ -9,7 +9,6 @@ use serde::{
 use crate::{
     accent::Accent,
     intensity::Intensity,
-    pass::Pass,
     tag_impls::{Any, AnyError, Weights, WeightsError},
 };
 
@@ -109,33 +108,27 @@ pub(crate) struct PassDef {
     rules: SortedMap<String, Box<dyn Tag>, true>,
 }
 
-struct Passes(Vec<Pass>);
-
-impl<'de> Deserialize<'de> for Passes {
+impl<'de> Deserialize<'de> for Pass {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let items = SortedMap::<String, PassDef, true>::deserialize(deserializer)?.0;
-        let mut passes: Vec<Pass> = Vec::with_capacity(items.len());
+        let def = PassDef::deserialize(deserializer)?;
 
-        for (name, pass_def) in items {
-            let mut rules = Vec::with_capacity(pass_def.rules.0.len());
+        let mut rules = Vec::with_capacity(def.rules.0.len());
 
-            for (regex, tag) in pass_def.rules.0 {
-                rules.push((
-                    runtime_format_single_value(&pass_def.format, &regex)
-                        .map_err(de::Error::custom)?,
-                    tag,
-                ));
-            }
-
-            passes.push(Pass::new(&name, rules).map_err(de::Error::custom)?);
+        for (regex, tag) in def.rules.0 {
+            rules.push((
+                runtime_format_single_value(&def.format, &regex).map_err(de::Error::custom)?,
+                tag,
+            ));
         }
 
-        Ok(Self(passes))
+        Self::new(rules).map_err(de::Error::custom)
     }
 }
+
+type Passes = SortedMap<String, Pass, true>;
 
 #[derive(Deserialize)]
 enum IntensityDef {
@@ -239,7 +232,6 @@ impl<'de> Deserialize<'de> for Accent {
 #[cfg(test)]
 mod tests {
     use crate::{
-        deserialize::Passes,
         intensity::Intensity,
         pass::Pass,
         tag::Tag,
@@ -292,30 +284,35 @@ mod tests {
             Intensity::new(
                 0,
                 vec![
-                    Pass::new("words", vec![(r"\ba\b".to_string(), Original::new_boxed())])
-                        .unwrap(),
-                    Pass::new("patterns", vec![("1".to_string(), Original::new_boxed())]).unwrap(),
+                    (
+                        "words".to_string(),
+                        Pass::new(vec![(r"\ba\b".to_string(), Original::new_boxed())]).unwrap(),
+                    ),
+                    (
+                        "patterns".to_string(),
+                        Pass::new(vec![("1".to_string(), Original::new_boxed())]).unwrap(),
+                    ),
                 ],
             ),
             Intensity::new(
                 1,
                 vec![
-                    Pass::new(
-                        "words",
-                        vec![
+                    (
+                        "words".to_string(),
+                        Pass::new(vec![
                             (r"\ba\b".to_string(), Original::new_boxed()),
                             (r"\bb\b".to_string(), Original::new_boxed()),
-                        ],
-                    )
-                    .unwrap(),
-                    Pass::new(
-                        "patterns",
-                        vec![
+                        ])
+                        .unwrap(),
+                    ),
+                    (
+                        "patterns".to_string(),
+                        Pass::new(vec![
                             ("1".to_string(), Original::new_boxed()),
                             ("2".to_string(), Original::new_boxed()),
-                        ],
-                    )
-                    .unwrap(),
+                        ])
+                        .unwrap(),
+                    ),
                 ],
             ),
         ];
@@ -360,17 +357,27 @@ mod tests {
             Intensity::new(
                 0,
                 vec![
-                    Pass::new("words", vec![(r"\ba\b".to_string(), Original::new_boxed())])
-                        .unwrap(),
-                    Pass::new("patterns", vec![("1".to_string(), Original::new_boxed())]).unwrap(),
+                    (
+                        "words".to_string(),
+                        Pass::new(vec![(r"\ba\b".to_string(), Original::new_boxed())]).unwrap(),
+                    ),
+                    (
+                        "patterns".to_string(),
+                        Pass::new(vec![("1".to_string(), Original::new_boxed())]).unwrap(),
+                    ),
                 ],
             ),
             Intensity::new(
                 1,
                 vec![
-                    Pass::new("words", vec![(r"\bb\b".to_string(), Original::new_boxed())])
-                        .unwrap(),
-                    Pass::new("patterns", vec![("2".to_string(), Original::new_boxed())]).unwrap(),
+                    (
+                        "words".to_string(),
+                        Pass::new(vec![(r"\bb\b".to_string(), Original::new_boxed())]).unwrap(),
+                    ),
+                    (
+                        "patterns".to_string(),
+                        Pass::new(vec![("2".to_string(), Original::new_boxed())]).unwrap(),
+                    ),
                 ],
             ),
         ];
@@ -495,21 +502,21 @@ mod tests {
             Intensity::new(
                 0,
                 vec![
-                    Pass::new(
-                        "words",
-                        vec![
+                    (
+                        "words".to_string(),
+                        Pass::new(vec![
                             (
                                 r"\btest\b".to_string(),
                                 Literal::new_boxed("Testing in progress; Please ignore ..."),
                             ),
                             (r"\bbadword\b".to_string(), Literal::new_boxed("")),
                             (r"\bdupe\b".to_string(), Literal::new_boxed("0")),
-                        ],
-                    )
-                    .unwrap(),
-                    Pass::new(
-                        "patterns",
-                        vec![
+                        ])
+                        .unwrap(),
+                    ),
+                    (
+                        "patterns".to_string(),
+                        Pass::new(vec![
                             (r"[a-z]".to_string(), Literal::new_boxed("e")),
                             (
                                 r"[A-Z]".to_string(),
@@ -537,56 +544,56 @@ mod tests {
                                 .unwrap()])
                                 .unwrap(),
                             ),
-                        ],
-                    )
-                    .unwrap(),
+                        ])
+                        .unwrap(),
+                    ),
                 ],
             ),
             Intensity::new(
                 1,
                 vec![
-                    Pass::new(
-                        "words",
-                        vec![
+                    (
+                        "words".to_string(),
+                        Pass::new(vec![
                             (r"\breplaced\b".to_string(), Literal::new_boxed("words")),
                             (r"\bdupe\b".to_string(), Literal::new_boxed("1")),
                             (r"\bWindows\b".to_string(), Literal::new_boxed("Linux")),
-                        ],
-                    )
-                    .unwrap(),
-                    Pass::new(
-                        "patterns",
-                        vec![
+                        ])
+                        .unwrap(),
+                    ),
+                    (
+                        "patterns".to_string(),
+                        Pass::new(vec![
                             (r"a+".to_string(), Literal::new_boxed("multiple A's")),
                             (r"^".to_string(), Literal::new_boxed("start")),
-                        ],
-                    )
-                    .unwrap(),
+                        ])
+                        .unwrap(),
+                    ),
                 ],
             ),
             Intensity::new(
                 2,
                 vec![
-                    Pass::new(
-                        "words",
-                        vec![
+                    (
+                        "words".to_string(),
+                        Pass::new(vec![
                             (r"\breplaced\b".to_string(), Literal::new_boxed("words")),
                             (r"\bdupe\b".to_string(), Literal::new_boxed("2")),
                             (r"\bWindows\b".to_string(), Literal::new_boxed("Linux")),
                             (r"\badded\b".to_string(), Literal::new_boxed("words")),
-                        ],
-                    )
-                    .unwrap(),
-                    Pass::new(
-                        "patterns",
-                        vec![
+                        ])
+                        .unwrap(),
+                    ),
+                    (
+                        "patterns".to_string(),
+                        Pass::new(vec![
                             (r"a+".to_string(), Literal::new_boxed("multiple A's")),
                             (r"^".to_string(), Literal::new_boxed("start")),
                             (r"b+".to_string(), Literal::new_boxed("multiple B's")),
                             (r"$".to_string(), Literal::new_boxed("end")),
-                        ],
-                    )
-                    .unwrap(),
+                        ])
+                        .unwrap(),
+                    ),
                 ],
             ),
         ];
@@ -602,18 +609,15 @@ mod tests {
 
     #[test]
     fn pass_duplicated_regexes_now_allowed() {
-        let err = ron::from_str::<Passes>(
+        let err = ron::from_str::<Pass>(
             r#"
-{
-    "somename":
-        (
-            rules: {
-                "dupew": {"Literal": "0"},
-                "dupew": {"Literal": "1"},
-                "dupew": {"Literal": "2"},
-            }
-        )
-}
+(
+    rules: {
+        "dupew": {"Literal": "0"},
+        "dupew": {"Literal": "1"},
+        "dupew": {"Literal": "2"},
+    }
+)
 "#,
         )
         .err()
