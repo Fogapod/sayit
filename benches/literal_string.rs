@@ -14,7 +14,7 @@ fn read_sample_words() -> Vec<String> {
         // there are a lot of " :" lines for some reason. delete them
         .filter(|&w| w != ":")
         // remove direct speech colon: "Adam:" -> "Adam"
-        .map(|w| w.strip_suffix(":").unwrap_or(&w))
+        .map(|w| w.strip_suffix(':').unwrap_or(w))
         .map(|w| w.to_owned())
         .collect()
 }

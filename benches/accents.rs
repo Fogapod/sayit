@@ -4,7 +4,7 @@ use std::fs;
 
 pub fn read_accent(filename: &str) -> Accent {
     let content = fs::read_to_string(filename).expect("reading accent definition");
-    ron::from_str::<Accent>(&content).expect(&format!("parsing accent {filename}"))
+    ron::from_str::<Accent>(&content).unwrap_or_else(|_| panic!("parsing accent {filename}"))
 }
 
 pub fn read_sample_file() -> String {
@@ -32,7 +32,7 @@ fn accents(c: &mut Criterion) {
         g.bench_function(name, |b| {
             b.iter(|| {
                 for line in &lines {
-                    accent.say_it(&line, 0);
+                    accent.say_it(line, 0);
                 }
             })
         });

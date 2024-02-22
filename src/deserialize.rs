@@ -292,8 +292,9 @@ mod tests {
             Intensity::new(
                 0,
                 vec![
-                    Pass::new("words", vec![(r"\ba\b", Original::new_boxed())]).unwrap(),
-                    Pass::new("patterns", vec![("1", Original::new_boxed())]).unwrap(),
+                    Pass::new("words", vec![(r"\ba\b".to_string(), Original::new_boxed())])
+                        .unwrap(),
+                    Pass::new("patterns", vec![("1".to_string(), Original::new_boxed())]).unwrap(),
                 ],
             ),
             Intensity::new(
@@ -302,14 +303,17 @@ mod tests {
                     Pass::new(
                         "words",
                         vec![
-                            (r"\ba\b", Original::new_boxed()),
-                            (r"\bb\b", Original::new_boxed()),
+                            (r"\ba\b".to_string(), Original::new_boxed()),
+                            (r"\bb\b".to_string(), Original::new_boxed()),
                         ],
                     )
                     .unwrap(),
                     Pass::new(
                         "patterns",
-                        vec![("1", Original::new_boxed()), ("2", Original::new_boxed())],
+                        vec![
+                            ("1".to_string(), Original::new_boxed()),
+                            ("2".to_string(), Original::new_boxed()),
+                        ],
                     )
                     .unwrap(),
                 ],
@@ -356,15 +360,17 @@ mod tests {
             Intensity::new(
                 0,
                 vec![
-                    Pass::new("words", vec![(r"\ba\b", Original::new_boxed())]).unwrap(),
-                    Pass::new("patterns", vec![("1", Original::new_boxed())]).unwrap(),
+                    Pass::new("words", vec![(r"\ba\b".to_string(), Original::new_boxed())])
+                        .unwrap(),
+                    Pass::new("patterns", vec![("1".to_string(), Original::new_boxed())]).unwrap(),
                 ],
             ),
             Intensity::new(
                 1,
                 vec![
-                    Pass::new("words", vec![(r"\bb\b", Original::new_boxed())]).unwrap(),
-                    Pass::new("patterns", vec![("2", Original::new_boxed())]).unwrap(),
+                    Pass::new("words", vec![(r"\bb\b".to_string(), Original::new_boxed())])
+                        .unwrap(),
+                    Pass::new("patterns", vec![("2".to_string(), Original::new_boxed())]).unwrap(),
                 ],
             ),
         ];
@@ -493,20 +499,20 @@ mod tests {
                         "words",
                         vec![
                             (
-                                r"\btest\b",
+                                r"\btest\b".to_string(),
                                 Literal::new_boxed("Testing in progress; Please ignore ..."),
                             ),
-                            (r"\bbadword\b", Literal::new_boxed("")),
-                            (r"\bdupe\b", Literal::new_boxed("0")),
+                            (r"\bbadword\b".to_string(), Literal::new_boxed("")),
+                            (r"\bdupe\b".to_string(), Literal::new_boxed("0")),
                         ],
                     )
                     .unwrap(),
                     Pass::new(
                         "patterns",
                         vec![
-                            (r"[a-z]", Literal::new_boxed("e")),
+                            (r"[a-z]".to_string(), Literal::new_boxed("e")),
                             (
-                                r"[A-Z]",
+                                r"[A-Z]".to_string(),
                                 Weights::new_boxed(vec![
                                     (5, Literal::new_boxed("E")),
                                     (1, Literal::new_boxed("Ē")),
@@ -518,7 +524,7 @@ mod tests {
                                 .unwrap(),
                             ),
                             (
-                                r"[0-9]",
+                                r"[0-9]".to_string(),
                                 Any::new_boxed(vec![Weights::new_boxed(vec![(
                                     1,
                                     Any::new_boxed(vec![
@@ -542,17 +548,17 @@ mod tests {
                     Pass::new(
                         "words",
                         vec![
-                            (r"\breplaced\b", Literal::new_boxed("words")),
-                            (r"\bdupe\b", Literal::new_boxed("1")),
-                            (r"\bWindows\b", Literal::new_boxed("Linux")),
+                            (r"\breplaced\b".to_string(), Literal::new_boxed("words")),
+                            (r"\bdupe\b".to_string(), Literal::new_boxed("1")),
+                            (r"\bWindows\b".to_string(), Literal::new_boxed("Linux")),
                         ],
                     )
                     .unwrap(),
                     Pass::new(
                         "patterns",
                         vec![
-                            (r"a+", Literal::new_boxed("multiple A's")),
-                            (r"^", Literal::new_boxed("start")),
+                            (r"a+".to_string(), Literal::new_boxed("multiple A's")),
+                            (r"^".to_string(), Literal::new_boxed("start")),
                         ],
                     )
                     .unwrap(),
@@ -564,20 +570,20 @@ mod tests {
                     Pass::new(
                         "words",
                         vec![
-                            (r"\breplaced\b", Literal::new_boxed("words")),
-                            (r"\bdupe\b", Literal::new_boxed("2")),
-                            (r"\bWindows\b", Literal::new_boxed("Linux")),
-                            (r"\badded\b", Literal::new_boxed("words")),
+                            (r"\breplaced\b".to_string(), Literal::new_boxed("words")),
+                            (r"\bdupe\b".to_string(), Literal::new_boxed("2")),
+                            (r"\bWindows\b".to_string(), Literal::new_boxed("Linux")),
+                            (r"\badded\b".to_string(), Literal::new_boxed("words")),
                         ],
                     )
                     .unwrap(),
                     Pass::new(
                         "patterns",
                         vec![
-                            (r"a+", Literal::new_boxed("multiple A's")),
-                            (r"^", Literal::new_boxed("start")),
-                            (r"b+", Literal::new_boxed("multiple B's")),
-                            (r"$", Literal::new_boxed("end")),
+                            (r"a+".to_string(), Literal::new_boxed("multiple A's")),
+                            (r"^".to_string(), Literal::new_boxed("start")),
+                            (r"b+".to_string(), Literal::new_boxed("multiple B's")),
+                            (r"$".to_string(), Literal::new_boxed("end")),
                         ],
                     )
                     .unwrap(),

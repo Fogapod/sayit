@@ -7,7 +7,7 @@ use utils::read_sample_file_lines;
 
 pub fn read_accent(filename: PathBuf) -> Accent {
     let content = fs::read_to_string(&filename).unwrap();
-    ron::from_str::<Accent>(&content).expect(&format!("parsing accent {}", filename.display()))
+    ron::from_str::<Accent>(&content).unwrap_or_else(|_| panic!("parsing accent {}", filename.display()))
 }
 
 // flatten breaks for unknown reason, possibly related to json failure, see json.rs.
@@ -60,7 +60,7 @@ fn ron_accents_work() {
             let accent = read_accent(path);
             for line in &lines {
                 for intensity in accent.intensities() {
-                    accent.say_it(&line, intensity);
+                    accent.say_it(line, intensity);
                 }
             }
             tested_at_least_one = true;

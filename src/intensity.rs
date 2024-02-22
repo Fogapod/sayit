@@ -16,6 +16,7 @@ impl Intensity {
     }
 
     /// Produces new instance by extending inner passes
+    #[allow(clippy::result_large_err)]
     pub fn extend(&self, level: u64, passes: Vec<Pass>) -> Result<Self, pass::CreationError> {
         let mut existing_passes = self.passes.clone();
         let mut appended_passes = Vec::new();
@@ -59,13 +60,13 @@ mod tests {
         let old_pass = Pass::new(
             "",
             vec![
-                ("old", Literal::new_boxed("old")),
-                ("old2", Literal::new_boxed("old2")),
+                ("old".to_string(), Literal::new_boxed("old")),
+                ("old2".to_string(), Literal::new_boxed("old2")),
             ],
         )
         .unwrap();
 
-        let new_pass = Pass::new("", vec![("old", Literal::new_boxed("new"))]).unwrap();
+        let new_pass = Pass::new("", vec![("old".to_string(), Literal::new_boxed("new"))]).unwrap();
 
         let old = Intensity::new(0, vec![old_pass]);
 
@@ -73,8 +74,8 @@ mod tests {
         let expected = Pass::new(
             "",
             vec![
-                ("old", Literal::new_boxed("new")),
-                ("old2", Literal::new_boxed("old2")),
+                ("old".to_string(), Literal::new_boxed("new")),
+                ("old2".to_string(), Literal::new_boxed("old2")),
             ],
         )
         .unwrap();
@@ -85,8 +86,13 @@ mod tests {
 
     #[test]
     fn rules_appended() {
-        let old_pass = Pass::new("", vec![("existing", Literal::new_boxed("old"))]).unwrap();
-        let new_pass = Pass::new("", vec![("added", Literal::new_boxed("new"))]).unwrap();
+        let old_pass = Pass::new(
+            "",
+            vec![("existing".to_string(), Literal::new_boxed("old"))],
+        )
+        .unwrap();
+        let new_pass =
+            Pass::new("", vec![("added".to_string(), Literal::new_boxed("new"))]).unwrap();
 
         let old = Intensity::new(0, vec![old_pass]);
 
@@ -94,8 +100,8 @@ mod tests {
         let expected = Pass::new(
             "",
             vec![
-                ("existing", Literal::new_boxed("old")),
-                ("added", Literal::new_boxed("new")),
+                ("existing".to_string(), Literal::new_boxed("old")),
+                ("added".to_string(), Literal::new_boxed("new")),
             ],
         )
         .unwrap();
@@ -105,15 +111,15 @@ mod tests {
 
     #[test]
     fn passes_appended() {
-        let old_pass = Pass::new("old", Vec::<(&str, _)>::new()).unwrap();
-        let new_pass = Pass::new("new", Vec::<(&str, _)>::new()).unwrap();
+        let old_pass = Pass::new("old", Vec::new()).unwrap();
+        let new_pass = Pass::new("new", Vec::new()).unwrap();
 
         let old = Intensity::new(0, vec![old_pass]);
 
         let extended = old.extend(1, vec![new_pass]).unwrap();
         let expected = vec![
-            Pass::new("old", Vec::<(&str, _)>::new()).unwrap(),
-            Pass::new("new", Vec::<(&str, _)>::new()).unwrap(),
+            Pass::new("old", Vec::new()).unwrap(),
+            Pass::new("new", Vec::new()).unwrap(),
         ];
 
         assert_eq!(extended.passes, expected);

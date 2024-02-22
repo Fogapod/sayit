@@ -8,7 +8,7 @@ use utils::read_sample_file_lines;
 pub fn read_accent(filename: PathBuf) -> Accent {
     let content = fs::read_to_string(&filename).unwrap();
     serde_json::from_str::<Accent>(&content)
-        .expect(&format!("parsing accent {}", filename.display()))
+        .unwrap_or_else(|_| panic!("parsing accent {}", filename.display()))
 }
 
 // flatten breaks treating string map keys as u64 (ints are not allowed as json map keys)
@@ -62,7 +62,7 @@ fn json_accents_work() {
         let accent = read_accent(path);
         for line in &lines {
             for intensity in accent.intensities() {
-                accent.say_it(&line, intensity);
+                accent.say_it(line, intensity);
             }
         }
         tested_at_least_one = true;

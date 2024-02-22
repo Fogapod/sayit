@@ -47,16 +47,11 @@ impl fmt::Display for CreationError {
 impl Error for CreationError {}
 
 impl Pass {
-    pub fn new<T: AsRef<str>>(
-        name: &str,
-        rules: Vec<(T, Box<dyn Tag>)>,
-    ) -> Result<Self, CreationError> {
+    #[allow(clippy::result_large_err)]
+    pub fn new(name: &str, rules: Vec<(String, Box<dyn Tag>)>) -> Result<Self, CreationError> {
         let (patterns, tags): (Vec<_>, Vec<_>) = rules.into_iter().unzip();
 
-        let patterns: Vec<_> = patterns
-            .into_iter()
-            .map(|s| s.as_ref().to_owned())
-            .collect();
+        let patterns: Vec<_> = patterns.into_iter().map(|s| s.to_string()).collect();
 
         let multi_regex = Regex::builder()
             .syntax(
@@ -65,7 +60,7 @@ impl Pass {
                     .case_insensitive(true),
             )
             .build_many(&patterns)
-            .map_err(|err| CreationError::BadRegex(err))?;
+            .map_err(CreationError::BadRegex)?;
 
         Ok(Self {
             name: name.to_owned(),
@@ -75,6 +70,7 @@ impl Pass {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn extend(&self, other: Pass) -> Result<Self, CreationError> {
         let mut existing_rules: Vec<_> = self
             .regexes
@@ -89,7 +85,7 @@ impl Pass {
             let mut replaced = false;
 
             for (existing_regex, existing_tag) in &mut existing_rules {
-                if &new_regex == existing_regex {
+                if new_regex == **existing_regex {
                     // FIXME: remove clone
                     *existing_tag = new_tag.clone();
                     replaced = true;
@@ -153,20 +149,20 @@ mod tests {
         let old = Pass::new(
             "",
             vec![
-                ("old", Literal::new_boxed("old")),
-                ("old2", Literal::new_boxed("old2")),
+                ("old".to_string(), Literal::new_boxed("old")),
+                ("old2".to_string(), Literal::new_boxed("old2")),
             ],
         )
         .unwrap();
 
-        let new = Pass::new("", vec![("old", Literal::new_boxed("new"))]).unwrap();
+        let new = Pass::new("", vec![("old".to_string(), Literal::new_boxed("new"))]).unwrap();
 
         let extended = old.extend(new).unwrap();
         let expected = Pass::new(
             "",
             vec![
-                ("old", Literal::new_boxed("new")),
-                ("old2", Literal::new_boxed("old2")),
+                ("old".to_string(), Literal::new_boxed("new")),
+                ("old2".to_string(), Literal::new_boxed("old2")),
             ],
         )
         .unwrap();
@@ -176,15 +172,19 @@ mod tests {
 
     #[test]
     fn rules_appended() {
-        let old = Pass::new("", vec![("existing", Literal::new_boxed("old"))]).unwrap();
-        let new = Pass::new("", vec![("added", Literal::new_boxed("new"))]).unwrap();
+        let old = Pass::new(
+            "",
+            vec![("existing".to_string(), Literal::new_boxed("old"))],
+        )
+        .unwrap();
+        let new = Pass::new("", vec![("added".to_string(), Literal::new_boxed("new"))]).unwrap();
 
         let extended = old.extend(new).unwrap();
         let expected = Pass::new(
             "",
             vec![
-                ("existing", Literal::new_boxed("old")),
-                ("added", Literal::new_boxed("new")),
+                ("existing".to_string(), Literal::new_boxed("old")),
+                ("added".to_string(), Literal::new_boxed("new")),
             ],
         )
         .unwrap();

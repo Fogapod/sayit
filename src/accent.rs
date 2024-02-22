@@ -26,11 +26,9 @@ impl fmt::Display for CreationError {
             CreationError::FirstIntensityNotZero => {
                 write!(f, "first intensity must have level 0")
             }
-            CreationError::UnsortedOrDuplicatedIntensities(level) => write!(
-                f,
-                "{}",
-                format!("duplicated or out of order intensity level {level}")
-            ),
+            CreationError::UnsortedOrDuplicatedIntensities(level) => {
+                write!(f, "duplicated or out of order intensity level {level}")
+            }
         }
     }
 }
@@ -102,8 +100,8 @@ mod tests {
             vec![Pass::new(
                 "",
                 vec![
-                    ("(?-i)[a-z]".to_owned(), Literal::new_boxed("e")),
-                    ("[A-Z]".to_owned(), Literal::new_boxed("E")),
+                    ("(?-i)[a-z]".to_string(), Literal::new_boxed("e")),
+                    ("[A-Z]".to_string(), Literal::new_boxed("E")),
                 ],
             )
             .unwrap()],
