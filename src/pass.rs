@@ -18,7 +18,7 @@ pub struct Pass {
 // skips 20 pages of debug output of `multi_regex` field
 impl fmt::Debug for Pass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("UnnamedPass")
+        f.debug_struct("Pass")
             .field("patterns", &self.regexes)
             .field("tags", &self.tags)
             .finish()
@@ -26,6 +26,7 @@ impl fmt::Debug for Pass {
 }
 
 impl Pass {
+    /// Creates new instance from vec of regex and tag pairs
     #[allow(clippy::result_large_err)]
     pub fn new(rules: Vec<(String, Box<dyn Tag>)>) -> Result<Self, CreationError> {
         let (patterns, tags): (Vec<_>, Vec<_>) = rules.into_iter().unzip();
@@ -46,13 +47,15 @@ impl Pass {
         })
     }
 
+    /// Merges it's own regexes with other. Tags for existing regexes are replaced while new ones
+    /// are placed at the end of resulting new Pass
     #[allow(clippy::result_large_err)]
     pub fn extend(&self, other: Pass) -> Result<Self, CreationError> {
         let mut existing_rules: Vec<_> = self
             .regexes
             .iter()
             .cloned()
-            .zip(self.tags.iter().cloned())
+            .zip(self.tags.clone())
             .collect();
 
         let mut appended_rules = Vec::new();
@@ -79,6 +82,7 @@ impl Pass {
         Self::new(existing_rules)
     }
 
+    /// Produces string with all non-overlapping regexes replaced by corresponding tags
     pub fn apply<'a>(&self, text: &'a str) -> Cow<'a, str> {
         let all_captures: Vec<_> = self.multi_regex.captures_iter(text).collect();
 

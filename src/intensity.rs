@@ -12,6 +12,7 @@ pub struct Intensity {
 }
 
 impl Intensity {
+    /// Creates new instance from vec of passes and their names
     pub fn new(level: u64, passes: Vec<(String, Pass)>) -> Self {
         let (names, passes) = passes.into_iter().unzip();
 
@@ -22,7 +23,8 @@ impl Intensity {
         }
     }
 
-    /// Produces new instance by extending inner passes
+    /// Merges it's own passes with other. Passes for existing names are replaced while new ones
+    /// are placed at the end of resulting new Intensity
     #[allow(clippy::result_large_err)]
     pub fn extend(
         &self,
