@@ -103,7 +103,8 @@ impl Pass {
                 input: text,
             });
 
-            output.extend([&text[last_replacement..range.start], &repl]);
+            output.push_str(&text[last_replacement..range.start]);
+            output.push_str(&repl);
 
             last_replacement = range.end;
         }
