@@ -613,7 +613,11 @@
                 "tired": {"Literal": "knackert"},
                 "gay": {"Literal": "bufty"},
                 "testing": {"Literal": "testin`"},
-                "fucking": {"Literal": "fookin`,feckin"},
+                "fucking": {"Any": [
+                    {"Literal": "fookin`"},
+                    {"Literal": "feckin"},
+                ]},
+                "fuck": {"Literal": "fook"},
                 "mom": {"Any": [
                     {"Literal": "maw"},
                     {"Literal": "mam"},
@@ -648,13 +652,6 @@
                     {"Literal": "lassies"},
                     {"Literal": "burds"},
                 ]},
-            },
-        ),
-        "patterns": (
-            rules: {
-                r"\bfuck": {"Literal": "fook"},
-                "h?ou": {"Literal": "oo"},
-                "ow": {"Literal": "ou"},
             },
         ),
         "ending": (
