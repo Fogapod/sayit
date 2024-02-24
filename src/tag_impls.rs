@@ -144,6 +144,7 @@ impl Display for WeightsError {
 )]
 pub struct Weights {
     choices: Vec<Box<dyn Tag>>,
+    cum_total: u64,
     cum_weights: Vec<u64>,
 }
 
@@ -151,10 +152,11 @@ impl Weights {
     pub fn new(items: Vec<(u64, Box<dyn Tag>)>) -> Result<Self, WeightsError> {
         let (weights, choices) = items.into_iter().unzip();
 
-        let cum_weights = Self::cum_weights(weights)?;
+        let (cum_total, cum_weights) = Self::cum_weights(weights)?;
 
         Ok(Self {
             choices,
+            cum_total,
             cum_weights,
         })
     }
@@ -163,26 +165,26 @@ impl Weights {
         Ok(Box::new(Self::new(items)?))
     }
 
-    fn cum_weights(mut weights: Vec<u64>) -> Result<Vec<u64>, WeightsError> {
+    fn cum_weights(mut weights: Vec<u64>) -> Result<(u64, Vec<u64>), WeightsError> {
         if weights.is_empty() {
             return Err(WeightsError::ZeroItems);
         }
 
-        let mut previous = weights[0];
+        let mut total = weights[0];
         for w in &mut weights[1..] {
-            *w += previous;
-            previous += *w - previous;
+            *w += total;
+            total += *w - total;
         }
 
         if weights[weights.len() - 1] == 0 {
             return Err(WeightsError::NonPositiveTotalWeights);
         }
 
-        Ok(weights)
+        Ok((total, weights))
     }
 
     fn random_choice(&self) -> usize {
-        let random_point = fastrand::u64(0..self.cum_weights.len() as u64);
+        let random_point = fastrand::u64(0..=self.cum_total);
 
         match self.cum_weights.binary_search(&random_point) {
             Ok(i) | Err(i) => i,
@@ -349,11 +351,11 @@ mod tests {
     fn weights_cum_weights() {
         assert_eq!(
             Weights::cum_weights(vec![1, 2, 3, 4, 5]).unwrap(),
-            vec![1, 3, 6, 10, 15]
+            (15, vec![1, 3, 6, 10, 15])
         );
         assert_eq!(
             Weights::cum_weights(vec![5, 4, 3, 2, 1]).unwrap(),
-            vec![5, 9, 12, 14, 15]
+            (15, vec![5, 9, 12, 14, 15])
         );
     }
 
