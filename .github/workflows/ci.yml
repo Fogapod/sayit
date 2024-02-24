@@ -18,7 +18,8 @@ jobs:
         toolchain: [stable, beta]
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@${{ matrix.toolchain }}
+        with:
+          toolchain: ${{ matrix.toolchain }}
       - run: cargo fmt --check
       - run: cargo clippy -- -D warnings
 
@@ -39,7 +40,8 @@ jobs:
         toolchain: [stable, beta]
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@${{ matrix.toolchain }}
+        with:
+          toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --all-features
 
