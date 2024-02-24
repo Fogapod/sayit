@@ -1,0 +1,17 @@
+// based on SS14 spanish:
+// https://github.com/space-wizards/space-station-14/blob/effcc5d8277cd28f9739359e50fc268ada8f4ea6/Content.Server/Speech/EntitySystems/SpanishAccentSystem.cs#L5
+(
+    accent: {
+        "question mark": (
+            rules: {
+                r"[^?]+\?$": {"Literal": "¿$0"},
+            },
+        ),
+        "main": (
+            rules: {
+                r"(?-i)\bE": {"Literal": "Es"},
+                r"(?-i)\be": {"Literal": "es"},
+            },
+        ),
+    },
+)
