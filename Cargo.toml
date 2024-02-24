@@ -33,7 +33,7 @@ log = "0.4"
 clap = { version = "4.4", optional = true, features = ["derive"] }
 
 # deserialization for Tag trait
-serde = { version = "1", features = ["derive"], optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
 typetag = { version = "0.2", optional = true }
 
 # format deserialization
