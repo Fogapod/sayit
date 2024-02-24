@@ -20,7 +20,7 @@ include = [
 
 [dependencies]
 # random replacements
-rand = "0.8"
+fastrand = "2.0"
 
 # pattern definition
 # excluded a couple unicode features

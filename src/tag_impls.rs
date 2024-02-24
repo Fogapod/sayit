@@ -3,8 +3,6 @@ use crate::deserialize::SortedMap;
 
 use std::{borrow::Cow, error::Error, fmt::Display};
 
-use rand::seq::SliceRandom;
-
 use crate::{tag::Tag, utils::LiteralString, Match};
 
 /// Same as [`Literal`] with `"$0"` argument: returns entire match.
@@ -109,15 +107,17 @@ impl Any {
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Any {
     fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
-        let mut rng = rand::thread_rng();
+        let i = fastrand::usize(..self.0.len());
 
-        self.0.choose(&mut rng).expect("empty Any").generate(m)
+        self.0[i].generate(m)
     }
 }
 
 /// [`Weights`] creation might fail
 #[derive(Debug)]
 pub enum WeightsError {
+    /// Must provide at least one element
+    ZeroItems,
     /// Sum of all weights must be positive
     NonPositiveTotalWeights,
 }
@@ -128,6 +128,7 @@ impl Display for WeightsError {
             f,
             "{}",
             match self {
+                Self::ZeroItems => "expected at least one element to choose from",
                 Self::NonPositiveTotalWeights => "weights must add up to a positive number",
             }
         )
@@ -141,32 +142,58 @@ impl Display for WeightsError {
     derive(serde::Deserialize),
     serde(try_from = "SortedMap<u64, Box<dyn Tag>, false>")
 )]
-pub struct Weights(Vec<(u64, Box<dyn Tag>)>);
+pub struct Weights {
+    choices: Vec<Box<dyn Tag>>,
+    cum_weights: Vec<u64>,
+}
 
 impl Weights {
     pub fn new(items: Vec<(u64, Box<dyn Tag>)>) -> Result<Self, WeightsError> {
-        if items.iter().fold(0, |sum, (w, _)| sum + w) == 0 {
-            return Err(WeightsError::NonPositiveTotalWeights);
-        }
+        let (weights, choices) = items.into_iter().unzip();
 
-        Ok(Self(items))
+        let cum_weights = Self::cum_weights(weights)?;
+
+        Ok(Self {
+            choices,
+            cum_weights,
+        })
     }
 
     pub fn new_boxed(items: Vec<(u64, Box<dyn Tag>)>) -> Result<Box<Self>, WeightsError> {
         Ok(Box::new(Self::new(items)?))
+    }
+
+    fn cum_weights(mut weights: Vec<u64>) -> Result<Vec<u64>, WeightsError> {
+        if weights.is_empty() {
+            return Err(WeightsError::ZeroItems);
+        }
+
+        let mut previous = weights[0];
+        for w in &mut weights[1..] {
+            *w += previous;
+            previous += *w - previous;
+        }
+
+        if weights[weights.len() - 1] == 0 {
+            return Err(WeightsError::NonPositiveTotalWeights);
+        }
+
+        Ok(weights)
+    }
+
+    fn random_choice(&self) -> usize {
+        let random_point = fastrand::u64(0..self.cum_weights.len() as u64);
+
+        match self.cum_weights.binary_search(&random_point) {
+            Ok(i) | Err(i) => i,
+        }
     }
 }
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Weights {
     fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
-        let mut rng = rand::thread_rng();
-
-        self.0
-            .choose_weighted(&mut rng, |item| item.0)
-            .expect("empty Weights")
-            .1
-            .generate(m)
+        self.choices[self.random_choice()].generate(m)
     }
 }
 
@@ -250,14 +277,12 @@ impl Tag for Concat {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::Match;
+
     use std::borrow::Cow;
 
     use regex_automata::meta::Regex;
-
-    use crate::{
-        tag_impls::{Any, Concat, Literal, Lower, Original, Tag, Upper, Weights},
-        Match,
-    };
 
     fn make_match(pattern: &str) -> Match {
         let re = Regex::new(".+").unwrap();
@@ -315,6 +340,24 @@ mod tests {
     }
 
     #[test]
+    fn weights_cum_weights_errors() {
+        assert!(Weights::cum_weights(Vec::new()).is_err());
+        assert!(Weights::cum_weights(vec![0, 0, 0, 0, 0]).is_err());
+    }
+
+    #[test]
+    fn weights_cum_weights() {
+        assert_eq!(
+            Weights::cum_weights(vec![1, 2, 3, 4, 5]).unwrap(),
+            vec![1, 3, 6, 10, 15]
+        );
+        assert_eq!(
+            Weights::cum_weights(vec![5, 4, 3, 2, 1]).unwrap(),
+            vec![5, 9, 12, 14, 15]
+        );
+    }
+
+    #[test]
     fn weights() {
         let tag = Weights::new(vec![
             (1, Literal::new_boxed("bar")),
@@ -326,6 +369,15 @@ mod tests {
         let selected = apply(&tag, "bar").into_owned();
 
         assert!(vec!["bar", "baz"].contains(&selected.as_str()));
+    }
+
+    #[test]
+    fn weights_single() {
+        let tag = Weights::new(vec![(50, Literal::new_boxed("test"))]).unwrap();
+
+        let selected = apply(&tag, "test").into_owned();
+
+        assert_eq!(selected, "test");
     }
 
     #[test]

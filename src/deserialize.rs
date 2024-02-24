@@ -404,7 +404,7 @@ mod tests {
     0: {"Original": ()},
     0: {"Original": ()},
     0: {"Original": ()},
-},
+}
 "#,
         )
         .err()
