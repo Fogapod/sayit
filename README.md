@@ -120,7 +120,7 @@ Full reference:
 )
 ```
 
-See more examples in [examples](examples) folder.
+See more examples in [examples](https://git.based.computer/fogapod/sayit/src/branch/master/examples) folder.
 
 ## CLI tool
 
