@@ -40,6 +40,7 @@
 //! Default replacments from [`tag_impls`] are:
 //!
 //! * [`Original`] does not replace (leaves original match as is)
+//! * [`Delete`] deletes match
 //! * [`Literal`] puts given string
 //! * [`Any`] selects random inner tag with equal weights
 //! * [`Weights`] selects random inner tag based on relative weights
@@ -115,6 +116,7 @@
 //! [`Match`]: crate::Match
 //! [`Intensity`]: crate::intensity::Intensity
 //! [`Original`]: crate::tag_impls::Original
+//! [`Delete`]: crate::tag_impls::Delete
 //! [`Literal`]: crate::tag_impls::Literal
 //! [`Any`]: crate::tag_impls::Any
 //! [`Weights`]: crate::tag_impls::Weights

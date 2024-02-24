@@ -30,6 +30,31 @@ impl Tag for Original {
     }
 }
 
+/// Deletes match
+///
+/// This is a shortcut for [`Literal`] with `""`
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+pub struct Delete;
+
+impl Delete {
+    #![allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn new_boxed() -> Box<Self> {
+        Box::new(Self::new())
+    }
+}
+
+#[cfg_attr(feature = "deserialize", typetag::deserialize)]
+impl Tag for Delete {
+    fn generate<'a>(&self, _: &Match<'a>) -> Cow<'a, str> {
+        Cow::Borrowed("")
+    }
+}
+
 /// Static string
 ///
 /// Acts as regex template, syntax doc: <https://docs.rs/regex/latest/regex/struct.Regex.html#example-9>
@@ -308,6 +333,14 @@ mod tests {
 
         assert_eq!(apply(&tag, "bar"), "bar");
         assert_eq!(apply(&tag, "foo"), "foo");
+    }
+
+    #[test]
+    fn delete() {
+        let tag = Delete::new();
+
+        assert_eq!(apply(&tag, "bar"), "");
+        assert_eq!(apply(&tag, "foo"), "");
     }
 
     #[test]
