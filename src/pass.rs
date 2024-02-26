@@ -16,6 +16,7 @@ pub struct Pass {
 }
 
 // skips 20 pages of debug output of `multi_regex` field
+#[allow(clippy::missing_fields_in_debug)]
 impl fmt::Debug for Pass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Pass")
@@ -83,6 +84,7 @@ impl Pass {
     }
 
     /// Produces string with all non-overlapping regexes replaced by corresponding tags
+    #[must_use]
     pub fn apply<'a>(&self, text: &'a str) -> Cow<'a, str> {
         let all_captures: Vec<_> = self.multi_regex.captures_iter(text).collect();
 
@@ -94,7 +96,10 @@ impl Pass {
         let mut output = String::with_capacity(text.len());
 
         for caps in all_captures {
-            let caps_match = caps.get_match().expect("this matched");
+            // SAFETY: these captures come from matches. The only way this can fail is if they were
+            //         created manually with Captures::empty()
+            let caps_match = unsafe { caps.get_match().unwrap_unchecked() };
+
             let range = caps_match.range();
             let tag = &self.tags[caps_match.pattern()];
 

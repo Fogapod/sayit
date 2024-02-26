@@ -62,6 +62,7 @@ impl Intensity {
     }
 
     /// Runs all inner passes against text
+    #[must_use]
     pub fn apply<'a>(&self, text: &'a str) -> Cow<'a, str> {
         self.passes.iter().fold(Cow::Borrowed(text), |acc, pass| {
             Cow::Owned(pass.apply(&acc).into_owned())

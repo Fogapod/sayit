@@ -2,108 +2,165 @@ use std::sync::OnceLock;
 
 use regex_automata::meta::Regex;
 
-/// Wrapper around string, precomputing some metadata to speed up operations
-///
-/// NOTE: this is very expensive to initialyze
-#[doc(hidden)] // pub for bench
-#[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "deserialize",
-    derive(serde::Deserialize),
-    serde(from = "&str")
-)]
-pub struct LiteralString {
-    pub(crate) body: String,
-    // templating is expensive, it is important to skip it if possible
-    pub(crate) has_template: bool,
-    // saves time in mimic_case
-    char_count: usize,
-    is_ascii_lowercase: bool,
-}
-
-impl PartialEq for LiteralString {
-    fn eq(&self, other: &Self) -> bool {
-        self.body == other.body
-    }
-}
-
-fn case(char_count: usize, string: &str) -> (bool, bool, bool) {
-    let (lower, upper) = string.chars().fold((0, 0), |(lower, upper), c| {
-        (
-            lower + usize::from(c.is_ascii_lowercase()),
-            upper + usize::from(c.is_ascii_uppercase()),
-        )
-    });
-
-    (
-        lower == char_count,
-        upper == char_count,
-        lower > 0 && upper > 0,
-    )
-}
-
 static TEMPLATE_REGEX: OnceLock<Regex> = OnceLock::new();
 
-impl From<&str> for LiteralString {
-    fn from(body: &str) -> Self {
-        let char_count = body.chars().count();
+// https://stackoverflow.com/a/38406885
+fn title(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
 
-        let (is_ascii_lowercase, _is_ascii_uppercase, _is_ascii_mixed_case) =
-            case(char_count, body);
+fn count_cases(string: &str) -> (usize, usize) {
+    string.chars().fold((0, 0), |(lower, upper), c| {
+        let is_lower = c.is_lowercase();
+        let is_upper = c.is_uppercase();
 
-        Self {
-            body: body.to_owned(),
-            char_count,
-            is_ascii_lowercase,
-            has_template: TEMPLATE_REGEX
-                // https://docs.rs/regex-automata/latest/regex_automata/util/interpolate/index.html
-                // this is not 100% accurate but should never result in false negatives
-                .get_or_init(|| Regex::new(r"(:?^|[^$])\$(:?[0-9A-Za-z_]|\{.+?\})").unwrap())
-                .is_match(body),
+        (lower + usize::from(is_lower), upper + usize::from(is_upper))
+    })
+}
+
+fn count_chars_and_cases(string: &str) -> (usize, usize, usize) {
+    string.chars().fold((0, 0, 0), |(total, lower, upper), c| {
+        let is_lower = c.is_lowercase();
+        let is_upper = c.is_uppercase();
+
+        (
+            total + 1,
+            lower + usize::from(is_lower),
+            upper + usize::from(is_upper),
+        )
+    })
+}
+
+#[doc(hidden)] // pub for bench
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum MimicAction {
+    Title,
+    Uppercase,
+    Nothing,
+}
+
+/// Allows examining string case when provided with info about characters
+#[doc(hidden)] // pub for bench
+pub trait LiteralString {
+    fn chars(&self) -> (usize, bool, bool);
+
+    /// Examine given string and tell which action to take to match it's case
+    #[must_use]
+    fn mimic_case_action(&self, from: &str) -> MimicAction {
+        let (self_char_count, self_has_lowercase, self_has_uppercase) = self.chars();
+
+        // do nothing if current string is:
+        // - has at least one uppercase letter
+        // - has no letters
+        if self_has_uppercase || !self_has_lowercase {
+            return MimicAction::Nothing;
+        }
+
+        let (char_count, lowercase, uppercase) = count_chars_and_cases(from);
+
+        // uppercase: has no lowercase letters and at least one uppercase letter
+        if (lowercase == 0 && uppercase != 0)
+            // either current string is 1 letter or string is upper and is long
+            && (self_char_count == 1 || char_count > 1)
+        {
+            return MimicAction::Uppercase;
+        }
+
+        // there is exactly one uppercase letter
+        if uppercase == 1
+            // either one letter long or first letter is upper
+            && (char_count == 1 || from.chars().next().is_some_and(char::is_uppercase))
+        {
+            return MimicAction::Title;
+        }
+
+        MimicAction::Nothing
+    }
+}
+
+/// Wrapper around string. Performs single case mimicking, does not precompute anything
+pub(crate) struct LazyLiteral {
+    body: String,
+    length_hint: usize,
+}
+
+impl LazyLiteral {
+    pub(crate) fn new(body: String, length_hint: usize) -> Self {
+        Self { body, length_hint }
+    }
+
+    pub(crate) fn handle_mimic_action(self, action: MimicAction) -> String {
+        match action {
+            MimicAction::Title => title(&self.body),
+            MimicAction::Uppercase => self.body.to_uppercase(),
+            MimicAction::Nothing => self.body,
         }
     }
 }
 
-impl LiteralString {
-    /// Examine given string and try to adjust to it's case. ascii only
+impl LiteralString for LazyLiteral {
+    fn chars(&self) -> (usize, bool, bool) {
+        let (lowercase, uppercase) = count_cases(&self.body);
+
+        (self.length_hint, lowercase != 0, uppercase != 0)
+    }
+}
+
+/// Wrapper around string. Optionally precomputes information for fast case mimicking
+#[doc(hidden)] // pub for bench
+#[derive(Debug, Clone)]
+pub struct PrecomputedLiteral {
+    pub(crate) body: String,
+    body_upper: String,
+    body_title: String,
+    pub(crate) has_template: bool,
+    char_count: usize,
+    has_lowercase: bool,
+    has_uppercase: bool,
+}
+
+impl PrecomputedLiteral {
     #[doc(hidden)] // pub for bench
-    pub fn mimic_ascii_case(&self, source: &str) -> String {
-        // only entirely lowercased string is changed. assume case has meaning for everything else
-        if !self.is_ascii_lowercase {
-            return self.body.clone();
+    pub fn new(body: String) -> Self {
+        let (char_count, lowercase, uppercase) = count_chars_and_cases(&body);
+
+        Self {
+            char_count,
+            has_lowercase: lowercase != 0,
+            has_uppercase: uppercase != 0,
+            body_upper: body.to_uppercase(),
+            body_title: title(&body),
+            // https://docs.rs/regex-automata/latest/regex_automata/util/interpolate/index.html
+            // this is not 100% accurate but should never result in false negatives
+            has_template: TEMPLATE_REGEX
+                .get_or_init(|| Regex::new(r"(:?^|[^$])\$(:?[0-9A-Za-z_]|\{.+?\})").unwrap())
+                .is_match(&body),
+            body,
         }
+    }
 
-        // if source was all uppercase we force all uppercase for replacement. this is likely to
-        // give false positives on short inputs like "I" or abbreviations
-        if source.chars().all(|c| c.is_ascii_uppercase()) {
-            return self.body.to_ascii_uppercase();
+    pub(crate) fn handle_mimic_action(&self, action: MimicAction) -> String {
+        match action {
+            MimicAction::Title => self.body_title.clone(),
+            MimicAction::Uppercase => self.body_upper.clone(),
+            MimicAction::Nothing => self.body.clone(),
         }
+    }
+}
 
-        // no constraints if source was all lowercase
-        if source.chars().all(|c| c.is_ascii_lowercase()) || !source.is_ascii() {
-            return self.body.clone();
-        }
+impl LiteralString for PrecomputedLiteral {
+    fn chars(&self) -> (usize, bool, bool) {
+        (self.char_count, self.has_lowercase, self.has_uppercase)
+    }
+}
 
-        // TODO: SIMD this
-        if source.chars().count() == self.char_count {
-            let mut body = self.body.clone();
-
-            for (i, c_old) in source.chars().enumerate() {
-                if c_old.is_ascii_lowercase() {
-                    body.get_mut(i..=i)
-                        .expect("strings have same len")
-                        .make_ascii_lowercase();
-                } else if c_old.is_ascii_uppercase() {
-                    body.get_mut(i..=i)
-                        .expect("strings have same len")
-                        .make_ascii_uppercase();
-                }
-            }
-
-            return body;
-        }
-
-        self.body.clone()
+impl PartialEq for PrecomputedLiteral {
+    fn eq(&self, other: &Self) -> bool {
+        self.body == other.body
     }
 }
 
@@ -159,74 +216,131 @@ pub(crate) fn runtime_format_single_value(template: &str, value: &str) -> Result
 mod tests {
     use super::*;
 
+    impl From<&str> for PrecomputedLiteral {
+        fn from(body: &str) -> Self {
+            Self::new(body.to_string())
+        }
+    }
+
     #[test]
     fn string_detects_template() {
-        assert!(!LiteralString::from("hello").has_template);
-        assert!(LiteralString::from("$hello").has_template);
-        assert!(LiteralString::from("hello $1 world").has_template);
-        assert!(!LiteralString::from("hello $$1 world").has_template);
-        assert!(!LiteralString::from("hello $$$1 world").has_template);
-        assert!(LiteralString::from("hello ${foo[bar].baz} world").has_template);
-        assert!(!LiteralString::from("hello $${foo[bar].baz} world").has_template);
+        assert!(!PrecomputedLiteral::from("hello").has_template);
+        assert!(PrecomputedLiteral::from("$hello").has_template);
+        assert!(PrecomputedLiteral::from("hello $1 world").has_template);
+        assert!(!PrecomputedLiteral::from("hello $$1 world").has_template);
+        assert!(!PrecomputedLiteral::from("hello $$$1 world").has_template);
+        assert!(PrecomputedLiteral::from("hello ${foo[bar].baz} world").has_template);
+        assert!(!PrecomputedLiteral::from("hello $${foo[bar].baz} world").has_template);
     }
 
     #[test]
     fn string_counts_chars() {
-        assert_eq!(LiteralString::from("hello").char_count, 5);
-        assert_eq!(LiteralString::from("привет").char_count, 6);
+        assert_eq!(PrecomputedLiteral::from("hello").chars().0, 5);
+        assert_eq!(PrecomputedLiteral::from("привет").chars().0, 6);
     }
 
     #[test]
-    fn string_detects_ascii_lowercase() {
-        assert_eq!(LiteralString::from("hello").is_ascii_lowercase, true);
-        assert_eq!(LiteralString::from("Hello").is_ascii_lowercase, false);
-        assert_eq!(LiteralString::from("1!@$#$").is_ascii_lowercase, false);
-        assert_eq!(LiteralString::from("привет").is_ascii_lowercase, false);
+    fn string_detects_lowercase() {
+        assert_eq!(PrecomputedLiteral::from("hello").chars().1, true);
+        assert_eq!(PrecomputedLiteral::from("Hello").chars().1, true);
+        assert_eq!(PrecomputedLiteral::from("1!@$#$").chars().1, false);
+        assert_eq!(PrecomputedLiteral::from("1!@$H#$").chars().1, false);
+        assert_eq!(PrecomputedLiteral::from("1!@$Hh#$").chars().1, true);
+        assert_eq!(PrecomputedLiteral::from("привет").chars().1, true);
+        assert_eq!(PrecomputedLiteral::from("ПРИВЕТ").chars().1, false);
+    }
+    #[test]
+    fn string_detects_uppercase() {
+        assert_eq!(PrecomputedLiteral::from("hello").chars().2, false);
+        assert_eq!(PrecomputedLiteral::from("Hello").chars().2, true);
+        assert_eq!(PrecomputedLiteral::from("1!@$#$").chars().2, false);
+        assert_eq!(PrecomputedLiteral::from("1!@$H#$").chars().2, true);
+        assert_eq!(PrecomputedLiteral::from("1!@$Hh#$").chars().2, true);
+        assert_eq!(PrecomputedLiteral::from("привет").chars().2, false);
+        assert_eq!(PrecomputedLiteral::from("ПРИВЕТ").chars().2, true);
     }
 
     #[test]
     fn mimic_case_input_lowercase() {
-        assert_eq!(LiteralString::from("bye").mimic_ascii_case("hello"), "bye");
-        assert_eq!(LiteralString::from("Bye").mimic_ascii_case("hello"), "Bye");
-        assert_eq!(LiteralString::from("bYE").mimic_ascii_case("hello"), "bYE");
+        assert_eq!(
+            PrecomputedLiteral::from("bye").mimic_case_action("hello"),
+            MimicAction::Nothing
+        );
+        assert_eq!(
+            PrecomputedLiteral::from("Bye").mimic_case_action("hello"),
+            MimicAction::Nothing
+        );
+        assert_eq!(
+            PrecomputedLiteral::from("bYE").mimic_case_action("hello"),
+            MimicAction::Nothing
+        );
     }
 
-    // questionable rule, becomes overcomplicated
-    // #[test]
-    // fn mimic_case_input_titled() {
-    //     assert_eq!(LiteralString::from("bye").mimic_ascii_case("Hello"), "Bye");
-    //     // has case variation -- do not touch it
-    //     assert_eq!(LiteralString::from("bYe").mimic_ascii_case("Hello"), "bYe");
-    //     // not ascii uppercase
-    //     assert_eq!(LiteralString::from("bye").mimic_ascii_case("Привет"), "bye");
-    // }
+    #[test]
+    fn mimic_case_input_titled() {
+        assert_eq!(
+            PrecomputedLiteral::from("bye").mimic_case_action("Hello"),
+            MimicAction::Title
+        );
+        // has case variation -- do not touch it
+        assert_eq!(
+            PrecomputedLiteral::from("bYe").mimic_case_action("Hello"),
+            MimicAction::Nothing
+        );
+        // non ascii title
+        assert_eq!(
+            PrecomputedLiteral::from("bye").mimic_case_action("Привет"),
+            MimicAction::Title
+        );
+    }
+    #[test]
+    fn mimic_case_input_titled_single_letter() {
+        assert_eq!(
+            PrecomputedLiteral::from("je").mimic_case_action("I"),
+            MimicAction::Title
+        );
+    }
 
     #[test]
     fn mimic_case_input_uppercase() {
-        assert_eq!(LiteralString::from("bye").mimic_ascii_case("HELLO"), "BYE");
+        assert_eq!(
+            PrecomputedLiteral::from("bye").mimic_case_action("HELLO"),
+            MimicAction::Uppercase
+        );
         // has case variation -- do not touch it
-        assert_eq!(LiteralString::from("bYE").mimic_ascii_case("HELLO"), "bYE");
-        // not ascii uppercase
-        assert_eq!(LiteralString::from("bye").mimic_ascii_case("ПРИВЕТ"), "bye");
         assert_eq!(
-            LiteralString::from("пока").mimic_ascii_case("HELLO"),
-            "пока"
+            PrecomputedLiteral::from("bbbbYE").mimic_case_action("HELLO"),
+            MimicAction::Nothing
+        );
+        // non ascii uppercase
+        assert_eq!(
+            PrecomputedLiteral::from("bye").mimic_case_action("ПРИВЕТ"),
+            MimicAction::Uppercase
+        );
+        assert_eq!(
+            PrecomputedLiteral::from("пока").mimic_case_action("HELLO"),
+            MimicAction::Uppercase
         );
     }
 
     #[test]
-    fn mimic_case_input_different_case() {
-        assert_eq!(LiteralString::from("bye").mimic_ascii_case("hELLO"), "bye");
-    }
-
-    #[test]
-    fn mimic_case_input_different_case_same_len() {
+    fn mimic_case_input_mixed_case() {
         assert_eq!(
-            LiteralString::from("byeee").mimic_ascii_case("hELLO"),
-            "bYEEE"
+            PrecomputedLiteral::from("bye").mimic_case_action("hELLO"),
+            MimicAction::Nothing
         );
-        assert_eq!(LiteralString::from("bye").mimic_ascii_case("hI!"), "bYe");
-        assert_eq!(LiteralString::from("Bye").mimic_ascii_case("hI!"), "Bye");
+        assert_eq!(
+            PrecomputedLiteral::from("пока").mimic_case_action("HEllo"),
+            MimicAction::Nothing
+        );
+        assert_eq!(
+            PrecomputedLiteral::from("пока").mimic_case_action("HELlo"),
+            MimicAction::Nothing
+        );
+        assert_eq!(
+            PrecomputedLiteral::from("bye").mimic_case_action("heLlo"),
+            MimicAction::Nothing
+        );
     }
 
     #[test]

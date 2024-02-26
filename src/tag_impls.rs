@@ -3,7 +3,11 @@ use crate::deserialize::SortedMap;
 
 use std::{borrow::Cow, error::Error, fmt::Display};
 
-use crate::{tag::Tag, utils::LiteralString, Match};
+use crate::{
+    tag::Tag,
+    utils::{LiteralString, PrecomputedLiteral},
+    Match,
+};
 
 /// Same as [`Literal`] with `"$0"` argument: returns entire match.
 ///
@@ -64,15 +68,16 @@ impl Tag for Delete {
     derive(serde::Deserialize),
     serde(transparent)
 )]
-pub struct Literal(LiteralString);
+pub struct Literal(PrecomputedLiteral);
 
 impl Literal {
-    pub fn new(s: &str) -> Self {
-        Self(LiteralString::from(s))
+    pub fn new(s: String) -> Self {
+        Self(PrecomputedLiteral::new(s))
     }
 
+    // reference to simplify tests
     pub fn new_boxed(s: &str) -> Box<Self> {
-        Box::new(Self::new(s))
+        Box::new(Self::new(s.to_string()))
     }
 }
 
@@ -82,9 +87,11 @@ impl Tag for Literal {
         if self.0.has_template {
             let interpolated = m.interpolate(&self.0.body);
 
-            m.mimic_ascii_case(&interpolated)
+            m.mimic_case(interpolated)
         } else {
-            self.0.mimic_ascii_case(m.get_match())
+            let action = self.0.mimic_case_action(m.get_match());
+
+            self.0.handle_mimic_action(action)
         }
         .into()
     }
@@ -345,24 +352,24 @@ mod tests {
 
     #[test]
     fn literal() {
-        let tag = Literal::new("bar");
+        let tag = Literal::new_boxed("bar");
 
-        assert_eq!(apply(&tag, "foo"), "bar");
-        assert_eq!(apply(&tag, "bar"), "bar");
+        assert_eq!(apply(tag.as_ref(), "foo"), "bar");
+        assert_eq!(apply(tag.as_ref(), "bar"), "bar");
     }
 
     #[test]
     fn literal_templates() {
-        let tag = Literal::new("$0");
+        let tag = Literal::new_boxed("$0");
 
-        assert_eq!(apply(&tag, "foo"), "foo");
+        assert_eq!(apply(tag.as_ref(), "foo"), "foo");
     }
 
     #[test]
     fn literal_mimics_case() {
-        let tag = Literal::new("bar");
+        let tag = Literal::new_boxed("bar");
 
-        assert_eq!(apply(&tag, "FOO"), "BAR");
+        assert_eq!(apply(tag.as_ref(), "FOO"), "BAR");
     }
 
     #[test]
@@ -453,7 +460,7 @@ mod tests {
 
     #[test]
     fn expansion() {
-        let swap_words_tag = Literal::new("$2 $1");
+        let swap_words_tag = Literal::new_boxed("$2 $1");
 
         let two_words_regex = Regex::new(r"(\w+) (\w+)").unwrap();
         let mut caps = two_words_regex.create_captures();
@@ -468,7 +475,7 @@ mod tests {
         );
 
         // nonexistent goup results in empty string
-        let delete_word_tag = Literal::new("$nonexistent $2");
+        let delete_word_tag = Literal::new_boxed("$nonexistent $2");
 
         let mut caps = two_words_regex.create_captures();
         two_words_regex.captures("DELETE US", &mut caps);

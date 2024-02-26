@@ -1,4 +1,8 @@
-use crate::{pass::Pass, tag::Tag, utils::runtime_format_single_value};
+use crate::{
+    pass::Pass,
+    tag::Tag,
+    utils::{runtime_format_single_value, PrecomputedLiteral},
+};
 use std::{fmt, marker::PhantomData};
 
 use serde::{
@@ -75,7 +79,7 @@ where
 }
 
 impl<'de> Deserialize<'de> for Any {
-    fn deserialize<D>(deserializer: D) -> Result<Any, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -84,6 +88,17 @@ impl<'de> Deserialize<'de> for Any {
         Self::new(items).map_err(|err| match err {
             AnyError::ZeroItems => de::Error::invalid_length(0, &"at least one element"),
         })
+    }
+}
+
+impl<'de> Deserialize<'de> for PrecomputedLiteral {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+
+        Ok(Self::new(s))
     }
 }
 

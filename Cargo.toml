@@ -70,5 +70,9 @@ name = "accents"
 harness = false
 
 [[bench]]
+name = "examples"
+harness = false
+
+[[bench]]
 name = "literal_string"
 harness = false

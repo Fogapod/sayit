@@ -1,7 +1,5 @@
-use criterion::criterion_group;
-use criterion::criterion_main;
-use criterion::Criterion;
-use sayit::utils::LiteralString;
+use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
+use sayit::utils::{LiteralString, PrecomputedLiteral};
 use std::fs;
 
 pub fn read_sample_file() -> String {
@@ -19,43 +17,26 @@ fn read_sample_words() -> Vec<String> {
         .collect()
 }
 
-// this is 100 times slower than _fast test
-fn literal_string_slow(c: &mut Criterion) {
+fn literal_string(c: &mut Criterion) {
     let mut g = c.benchmark_group("literal_string");
-    g.sample_size(500);
-
-    g.bench_function("creation", |b| {
-        let words = read_sample_words();
-
-        b.iter(|| {
-            for word in &words {
-                let _ = LiteralString::from(word.as_str());
-            }
-        })
-    });
-    g.finish();
-}
-
-fn literal_string_fast(c: &mut Criterion) {
-    let mut g = c.benchmark_group("literal_string");
-    g.sample_size(300);
+    g.sampling_mode(SamplingMode::Linear);
 
     g.bench_function("mimic_case", |b| {
         let words = read_sample_words();
-        let strings: Vec<LiteralString> = words
+        let strings: Vec<PrecomputedLiteral> = words
             .iter()
-            .map(|w| LiteralString::from(w.as_str()))
+            .map(|w| PrecomputedLiteral::new(w.to_string()))
             .collect();
         let reversed_words: Vec<String> = words.into_iter().rev().collect();
 
         b.iter(|| {
             for (string, word) in strings.iter().zip(&reversed_words) {
-                let _ = string.mimic_ascii_case(word);
+                let _ = string.mimic_case_action(word);
             }
         })
     });
     g.finish();
 }
 
-criterion_group!(benches, literal_string_slow, literal_string_fast);
+criterion_group!(benches, literal_string);
 criterion_main!(benches);

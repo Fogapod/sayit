@@ -61,7 +61,7 @@ fn ron_accents_work() {
             let accent = read_accent(path);
             for line in &lines {
                 for intensity in accent.intensities() {
-                    accent.say_it(line, intensity);
+                    let _ = accent.say_it(line, intensity);
                 }
             }
             tested_at_least_one = true;

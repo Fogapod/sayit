@@ -131,8 +131,7 @@ pub mod pass;
 pub mod tag;
 pub mod tag_impls;
 
-// pub for bench
-#[doc(hidden)]
+#[doc(hidden)] // pub for bench
 pub mod utils;
 
 #[cfg(feature = "deserialize")]

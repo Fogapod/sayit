@@ -42,6 +42,7 @@ impl Accent {
     }
 
     /// Walks rules for given intensity from top to bottom and applies them
+    #[must_use]
     pub fn say_it<'a>(&self, text: &'a str, intensity: u64) -> Cow<'a, str> {
         // Go from the end and pick first intensity that is less or eaual to requested. This is
         // guaranteed to return something because base intensity 0 is always present at the bottom
@@ -101,7 +102,7 @@ mod tests {
                 "".to_owned(),
                 Pass::new(vec![
                     ("(?-i)[a-z]".to_string(), Literal::new_boxed("e")),
-                    ("[A-Z]".to_string(), Literal::new_boxed("E")),
+                    ("(?-i)[A-Z]".to_string(), Literal::new_boxed("E")),
                 ])
                 .unwrap(),
             )],
