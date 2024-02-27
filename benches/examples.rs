@@ -41,6 +41,8 @@ fn examples(c: &mut Criterion) {
         let accent_name = path.file_stem().unwrap().to_string_lossy();
 
         g.bench_function(accent_name, |b| {
+            fastrand::seed(0);
+
             b.iter(|| {
                 for line in &lines {
                     let _ = accent.say_it(line, 0);
