@@ -1,6 +1,8 @@
-use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
-use sayit::utils::{LiteralString, PrecomputedLiteral};
 use std::fs;
+
+use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
+
+use sayit::{tag_impls::literal::PrecomputedLiteral, utils::LiteralString};
 
 pub fn read_sample_file() -> String {
     fs::read_to_string("tests/sample_text.txt").expect("reading sample text")

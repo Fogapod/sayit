@@ -1,13 +1,11 @@
-#[cfg(feature = "deserialize")]
-use crate::deserialize::SortedMap;
+#[doc(hidden)] // pub for bench
+pub mod literal;
+
+pub use literal::Literal;
 
 use std::{borrow::Cow, error::Error, fmt::Display};
 
-use crate::{
-    tag::Tag,
-    utils::{LiteralString, PrecomputedLiteral},
-    Match,
-};
+use crate::{tag::Tag, Match};
 
 /// Same as [`Literal`] with `"$0"` argument: returns entire match.
 ///
@@ -56,44 +54,6 @@ impl Delete {
 impl Tag for Delete {
     fn generate<'a>(&self, _: &Match<'a>) -> Cow<'a, str> {
         Cow::Borrowed("")
-    }
-}
-
-/// Static string
-///
-/// Acts as regex template, syntax doc: <https://docs.rs/regex/latest/regex/struct.Regex.html#example-9>
-#[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "deserialize",
-    derive(serde::Deserialize),
-    serde(transparent)
-)]
-pub struct Literal(PrecomputedLiteral);
-
-impl Literal {
-    pub fn new(s: String) -> Self {
-        Self(PrecomputedLiteral::new(s))
-    }
-
-    // reference to simplify tests
-    pub fn new_boxed(s: &str) -> Box<Self> {
-        Box::new(Self::new(s.to_string()))
-    }
-}
-
-#[cfg_attr(feature = "deserialize", typetag::deserialize)]
-impl Tag for Literal {
-    fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
-        if self.0.has_template {
-            let interpolated = m.interpolate(&self.0.body);
-
-            m.mimic_case(interpolated)
-        } else {
-            let action = self.0.mimic_case_action(m.get_match());
-
-            self.0.handle_mimic_action(action)
-        }
-        .into()
     }
 }
 
@@ -169,11 +129,6 @@ impl Display for WeightsError {
 
 /// Selects any of nested items with relative probabilities
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "deserialize",
-    derive(serde::Deserialize),
-    serde(try_from = "SortedMap<u64, Box<dyn Tag>, false>")
-)]
 pub struct Weights {
     choices: Vec<Box<dyn Tag>>,
     cum_total: u64,

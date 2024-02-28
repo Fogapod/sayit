@@ -1,8 +1,3 @@
-use crate::{
-    pass::Pass,
-    tag::Tag,
-    utils::{runtime_format_single_value, PrecomputedLiteral},
-};
 use std::{fmt, marker::PhantomData};
 
 use serde::{
@@ -13,7 +8,10 @@ use serde::{
 use crate::{
     accent::Accent,
     intensity::Intensity,
-    tag_impls::{Any, AnyError, Weights, WeightsError},
+    pass::Pass,
+    tag::Tag,
+    tag_impls::{literal::PrecomputedLiteral, Any, AnyError, Weights, WeightsError},
+    utils::runtime_format_single_value,
 };
 
 // deserializes from map while preserving order of elements
@@ -87,6 +85,20 @@ impl<'de> Deserialize<'de> for Any {
 
         Self::new(items).map_err(|err| match err {
             AnyError::ZeroItems => de::Error::invalid_length(0, &"at least one element"),
+        })
+    }
+}
+
+impl<'de> Deserialize<'de> for Weights {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let items = SortedMap::<u64, Box<dyn Tag>, false>::deserialize(deserializer)?;
+
+        Self::new(items.0).map_err(|err| match err {
+            WeightsError::ZeroItems => de::Error::invalid_length(0, &"at least one element"),
+            WeightsError::NonPositiveTotalWeights => de::Error::custom(err),
         })
     }
 }
@@ -165,7 +177,7 @@ impl<'de> Deserialize<'de> for IntensitiesDef {
             type Value = IntensitiesDef;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("intensities: `1: Intensity`")
+                formatter.write_str("map: u64 -> Intensity")
             }
 
             fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>

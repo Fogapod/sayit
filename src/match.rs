@@ -2,7 +2,44 @@ use std::ops::Range;
 
 use regex_automata::util::captures::Captures;
 
-use crate::utils::{LazyLiteral, LiteralString};
+use crate::utils::{to_title_case, LiteralString, MimicAction};
+
+pub(crate) struct LazyLiteral {
+    body: String,
+    length_hint: usize,
+}
+
+impl LazyLiteral {
+    pub(crate) fn new(body: String, length_hint: usize) -> Self {
+        Self { body, length_hint }
+    }
+
+    pub(crate) fn handle_mimic_action(self, action: MimicAction) -> String {
+        match action {
+            MimicAction::Title => to_title_case(&self.body),
+            MimicAction::Uppercase => self.body.to_uppercase(),
+            MimicAction::Nothing => self.body,
+        }
+    }
+}
+
+// slightly faster version than the one in utils, does not count total characters
+fn count_cases(string: &str) -> (usize, usize) {
+    string.chars().fold((0, 0), |(lower, upper), c| {
+        let is_lower = c.is_lowercase();
+        let is_upper = c.is_uppercase();
+
+        (lower + usize::from(is_lower), upper + usize::from(is_upper))
+    })
+}
+
+impl LiteralString for LazyLiteral {
+    fn chars(&self) -> (usize, bool, bool) {
+        let (lowercase, uppercase) = count_cases(&self.body);
+
+        (self.length_hint, lowercase != 0, uppercase != 0)
+    }
+}
 
 /// Holds [`regex_automata::util::captures::Captures`] and full input
 #[derive(Debug)]
