@@ -67,52 +67,45 @@ pub trait LiteralString {
     }
 }
 
-// replaces a SINGLE REQUIRED "{}" template in string. braces can be escaped by doubling "{{" "}}"
+// replaces a SINGLE REQUIRED "{}" template in string. opening brace can be escaped by doubling "{{"
 pub(crate) fn runtime_format_single_value(template: &str, value: &str) -> Result<String, String> {
     let mut result = String::new();
 
     let mut formatted = false;
-    let mut previous = None;
+    let mut opened = false;
+    let mut chars = template.chars();
 
-    for (i, c) in template.chars().enumerate() {
+    for c in chars.by_ref() {
         match c {
             '{' => {
-                if let Some('{') = previous {
+                opened = !opened;
+                if opened {
                     result.push('{');
-                    previous = None;
-                } else {
-                    previous = Some('{');
-                }
-            }
-            '}' => match (previous, formatted) {
-                (Some('{'), true) => return Err(format!("unmatched '{{' at position {i}")),
-                (Some('{'), false) => {
-                    result.push_str(value);
-                    formatted = true;
-                    previous = None;
-                }
-                (Some('}'), _) => {
-                    result.push('}');
-                    previous = None;
-                }
-                (None, _) => previous = Some('}'),
-                (Some(_), _) => unreachable!(),
-            },
-            _ => {
-                if let Some(previous) = previous {
-                    return Err(format!("unmatched '{previous}' at position {i}"));
                 }
 
-                result.push(c);
+                continue;
             }
+            '}' => {
+                if opened {
+                    // pop '{'
+                    result.pop();
+                    result.push_str(value);
+                    formatted = true;
+                    break;
+                }
+            }
+            _ => {}
         }
+
+        opened = false;
+        result.push(c);
     }
 
     if !formatted {
         return Err("string did not contain {} template".to_owned());
     }
 
-    Ok(result)
+    Ok(result + chars.as_str())
 }
 
 #[cfg(test)]
@@ -124,24 +117,27 @@ mod tests {
         assert_eq!(runtime_format_single_value("{}", "1").unwrap(), "1");
         assert_eq!(runtime_format_single_value(" {}", "2").unwrap(), " 2");
         assert_eq!(runtime_format_single_value("{} ", "3").unwrap(), "3 ");
+        assert_eq!(
+            runtime_format_single_value(r"\b{start-half}{}\b{end-half}", "world").unwrap(),
+            r"\b{start-half}world\b{end-half}"
+        );
     }
 
     #[test]
     fn runtime_format_escapes() {
         assert_eq!(
-            runtime_format_single_value("}} {{{}}}", "1").unwrap(),
-            "} {1}"
+            runtime_format_single_value("{{ {}{{", "1").unwrap(),
+            "{ 1{{"
         );
+        assert_eq!(runtime_format_single_value("}}}{}", "1").unwrap(), "}}}1");
+        assert_eq!(runtime_format_single_value("{a}{}", "1").unwrap(), "{a}1");
+        assert_eq!(runtime_format_single_value("{{{}}}", "1").unwrap(), "{1}}");
+        assert_eq!(runtime_format_single_value("{}{{{", "1").unwrap(), "1{{{");
     }
 
     #[test]
     fn runtime_format_requires_replacement() {
         assert!(runtime_format_single_value("hello {{", "world").is_err());
-    }
-
-    #[test]
-    fn runtime_format_one_replacement() {
-        assert!(runtime_format_single_value("hello {} {}", "world").is_err());
     }
 
     #[test]
