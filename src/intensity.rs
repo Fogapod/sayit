@@ -39,21 +39,15 @@ impl Intensity {
             .collect();
         let mut appended_passes = Vec::new();
 
-        for (new_name, new_pass) in passes {
-            let mut replaced = false;
-
+        'outer: for (new_name, new_pass) in passes {
             for (existing_name, existing_pass) in &mut existing_passes {
                 if *existing_name == new_name {
-                    // FIXME: remove clone
-                    *existing_pass = existing_pass.extend(new_pass.clone())?;
-                    replaced = true;
-                    break;
+                    *existing_pass = existing_pass.extend(new_pass)?;
+                    continue 'outer;
                 }
             }
 
-            if !replaced {
-                appended_passes.push((new_name, new_pass));
-            }
+            appended_passes.push((new_name, new_pass));
         }
 
         existing_passes.extend(appended_passes);

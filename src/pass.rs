@@ -61,21 +61,15 @@ impl Pass {
 
         let mut appended_rules = Vec::new();
 
-        for (new_regex, new_tag) in other.regexes.into_iter().zip(other.tags.into_iter()) {
-            let mut replaced = false;
-
+        'outer: for (new_regex, new_tag) in other.regexes.into_iter().zip(other.tags.into_iter()) {
             for (existing_regex, existing_tag) in &mut existing_rules {
                 if new_regex == **existing_regex {
-                    // FIXME: remove clone
-                    *existing_tag = new_tag.clone();
-                    replaced = true;
-                    break;
+                    *existing_tag = new_tag;
+                    continue 'outer;
                 }
             }
 
-            if !replaced {
-                appended_rules.push((new_regex, new_tag));
-            }
+            appended_rules.push((new_regex, new_tag));
         }
 
         existing_rules.extend(appended_rules);
