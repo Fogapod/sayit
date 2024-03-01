@@ -21,83 +21,82 @@ Full reference:
 
 ```ron
 (
-    // main list of passes
+    // Consists of named blocks named "pass" that are applied in top to bottom order
+    // pass names must be unique. they are used if you want to extend accent
     accent: {
-        // `words` are applied before `patterns`
-        // pass names must be unique. they are used if you want to extend accent
+        // First pass
         "words": (
-            // this optional field instructs all regexes inside this pass to be wrapped in \b
-            format: r"\b{}\b",
+            // This optional field instructs all regexes inside this pass to be wrapped in
+            // regex word boundaries
+            format: r"\<{}\>",
 
-            // pairs of (regex, tag)
+            // Pairs of (regex, tag)
             rules: {
-                // this is the simplest rule to replace all "windows" words occurences with "spyware"
+                // Simplest rule to replace all "windows" words occurences with "spyware"
                 "windows": {"Literal": "spyware"},
 
-                // this replaces word "OS" with one of tags, with equal probability
+                // This replaces word "os" with one of tags, with equal probability
                 "os": {"Any": [
                     {"Literal": "Ubuntu"},
                     {"Literal": "Arch"},
                     {"Literal": "Gentoo"},
                 ]},
 
-                // `Literal` supports regex templating: https://docs.rs/regex/latest/regex/struct.Regex.html#example-9
-                // this will swwap "a" and "b" "ab" -> "ba"
-                r"(a)(?P<b_group>b)": {"Literal": "$b_group$a"},
+                // `Literal` supports regex templating:
+                // https://docs.rs/regex/latest/regex/struct.Regex.html#example-9
+                // This will swap "a" and "b" using named and numbered groups
+                r"(a)(?P<b_group>b)": {"Literal": "$b_group$1"},
             },
         ),
 
-        // second pass
+        // Second pass
         "patterns": (
+            // Both rules use "(?-i)" which opts out of case insensivity
             rules: {
-                // lowercases all `p` letters (use "p" match from `Original`, then lowercase)
-                // note that this will still be uppercase for single letter "P" match because of
-                // case mimicking. there is currently no way to disable it
-                "p": {"Lower": {"Original": ()}},
+                // Lowercases all `P` letters
+                "(?-i)P": {"Lower": {"Original": ()}},
 
-                // uppercases all `m` letters, undoing previous operation
-                "m": {"Upper": {"Original": ()}},
+                // Uppercases all `m` letters
+                "(?-i)m": {"Upper": {"Original": ()}},
             },
         ),
 
-        // third pass. note that ^ and $ will conflict with patterns at beginning and end of strings because of regex merging.
-        // these should be defined separately
+        // Third pass. note that ^ and $ may overlap with words at beginning and
+        // end of strings. These should be defined separately
         "ending": (
             rules: {
-                // inserts one of the honks. first value of `Weights` is relative weight. higher is better
+                // Selects honks using relative weights. Higher is better
                 "$": {"Weights": {
                     32: {"Literal": " HONK!"},
                     16: {"Literal": " HONK HONK!"},
                     08: {"Literal": " HONK HONK HONK!"},
-                    // ultra rare sigma honk - 1 / 56
+                    // Ultra rare sigma honk - 1 / 56 chance
                     01: {"Literal": " HONK HONK HONK HONK!!!!!!!!!!!!!!!"},
                 }},
             },
         ),
     },
 
-    // accent can be used with intensity (non negative value). higher intensities can either extend
-    // lower level or completely replace it.
-    // default intensity is 0. higher ones are defined here
+    // Accent can be used with intensity (non negative value). Higher
+    // intensities can either extend lower level or completely replace it.
+    // Default intensity (rules above) is 0. Higher ones are defined here
     intensities: {
-        // extends previous intensity (level 0, base one in this case), adding additional rules
-        // below existingones. passes keep their relative order, rules inside passes also preserve order
+        // Extends previous intensity (base one in this case), adding additional
+        // rules and overwritiong passes that have same names.
         1: Extend({
             "words": (
-                format: r"\b{}\b",
+                format: r"\<{}\>",
                 rules: {
-                    // even though we are extending, defining same rule will overwrite result.
-                    // relative order of rules remain the same: "windows" will remain first
+                    // Will overwrite "windows" pattern in "main" pass
                     "windows": {"Literal": "bloatware"},
                 },
             ),
 
-            // extend "patterns", adding 1 more rule
+            // Extend "patterns", adding 1 more rule with new pattern
             "patterns": (
                 name: "patterns",
                 rules: {
-                    // tags can be nested arbitrarily
-                    "[A-Z]": {"Weights": {
+                    "(?-i)[A-Z]": {"Weights": {
                         // 50% to replace capital letter with one of the Es
                         1: {"Any": [
                             {"Literal": "E"},
@@ -114,7 +113,7 @@ Full reference:
             ),
         }),
 
-        // replace intensity 1 entirely. in this case with nothing. remove all rules on intensity 2+
+        // Replace intensity 1 entirely. In this case with nothing
         2: Replace({}),
     },
 )

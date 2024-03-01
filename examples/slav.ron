@@ -1,36 +1,38 @@
 (
     accent: {
         "words": (
-            format: r"\b{}\b",
+            format: r"(?-u)\<{}\>",
             rules: {
                 "my": {"Literal": "our"},
                 "friend": {"Literal": "comrade"},
-                "(enemy|foe)": {"Literal": "american pig"},
-                "(fuck|shit)": {"Any": [
+                "(:?enemy|foe)": {"Literal": "american pig"},
+                "(:?fuck|shit)": {"Any": [
                     {"Literal": "blyat"},
                     {"Literal": "cyka"},
                 ]},
-                "usa": {"Literal": "американские захватчики"},
-                "we are being attacked": {"Literal": "нас атакуют"},
             },
         ),
         "patterns": (
             name: "patterns",
             rules: {
-                r"\b(a|the) +": {"Weights": {
+                r"(?-u)\<(:?a|the) +": {"Weights": {
                     1: {"Original": ()},
-                    1: {"Literal": ""},
+                    1: {"Delete": ()},
                 }},
-                r"\bha": {"Literal": "ga"},
+                r"(?-u)\<ha": {"Literal": "ga"},
+                r"(?-u)\Bo?u": {"Any": [
+                    {"Literal": "a"},
+                    {"Literal": "oo"},
+                ]},
                 "th": {"Any": [
                     {"Literal": "z"},
                     {"Literal": "g"},
                 ]},
-                r"\Bo?u": {"Any": [
-                    {"Literal": "a"},
-                    {"Literal": "oo"},
-                ]},
                 "w": {"Literal": "v"},
+            }
+        ),
+        "ending": (
+            rules: {
                 "$": {"Weights": {
                     1: {"Original": ()},
                     1: {"Any": [
@@ -43,7 +45,7 @@
     },
     intensities: {
         1: Extend({
-            "patterns": (
+            "ending": (
                 rules: {
                     "$": {"Any": [
                         {"Literal": " cyka"},

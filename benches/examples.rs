@@ -5,7 +5,7 @@ use std::{fs, path::PathBuf};
 pub fn read_accent(filename: &PathBuf) -> Accent {
     let content = fs::read_to_string(filename).expect("reading accent definition");
     ron::from_str::<Accent>(&content)
-        .unwrap_or_else(|_| panic!("parsing accent {}", filename.display()))
+        .unwrap_or_else(|err| panic!("parsing accent {}: {err}", filename.display()))
 }
 
 pub fn read_sample_file() -> String {
@@ -37,10 +37,10 @@ fn examples(c: &mut Criterion) {
             continue;
         }
 
-        let accent = read_accent(&path);
         let accent_name = path.file_stem().unwrap().to_string_lossy();
 
         g.bench_function(accent_name, |b| {
+            let accent = read_accent(&path);
             fastrand::seed(0);
 
             b.iter(|| {

@@ -1,7 +1,10 @@
 (
     accent: {
         "words": (
-            format: r"\b{}\b",
+            // using non-unicode word boundaries results in false positives:
+            // "яall" -> "яaw"
+            // howerver these should basically never happen and it gives 15% better performance
+            format: r"(?-u)\<{}\>",
             rules: {
                 "above": {"Literal": "`boon"},
                 "across": {"Literal": "o`er"},

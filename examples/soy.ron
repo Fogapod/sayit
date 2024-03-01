@@ -2,11 +2,11 @@
     accent: {
         "pre": (
             rules: {
-                r"\bkill\s+(\w+)\b": {"Literal": "total $1 death"},
+                r"\<kill\s+(\w+)\>": {"Literal": "total $1 death"},
             },
         ),
         "words": (
-            format: r"\b{}\b",
+            format: r"(?-u)\<{}\>",
             rules: {
                 // good
                 "(?:good|nice|great|positive)": {"Weights": {

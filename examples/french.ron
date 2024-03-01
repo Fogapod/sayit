@@ -5,7 +5,7 @@
         "main": (
             rules: {
                 "th": {"Literal": "'z"},
-                r"\bh\B": {"Literal": "'"},
+                r"\<h\B": {"Literal": "'"},
                 r"(\w\w)([!?;:])\B": {"Literal": "$1 $2"},
             }
         ),
@@ -14,7 +14,7 @@
         1: Replace({
             // chad funny word replacement french
             "main": (
-                format: r"\b{}\b",
+                format: r"(?-u)\<{}\>",
                 rules: {
                     "a": {"Any": [
                         {"Literal": "un"},

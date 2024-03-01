@@ -1,7 +1,7 @@
 (
     accent: {
         "main": (
-            format: r"\b{}\b",
+            format: r"\<{}\>",
             rules: {
                 // duplicate words
                 r"\S+": {"Weights": {
@@ -26,7 +26,7 @@
     intensities: {
         1: Replace({
             "main": (
-                format: r"\b{}\b",
+                format: r"\<{}\>",
                 rules: {
                     r"\S+": {"Weights": {
                         8: {"Original": ()},
@@ -51,7 +51,7 @@
         }),
         2: Replace({
             "main": (
-                format: r"\b{}\b",
+                format: r"\<{}\>",
                 rules: {
                     r"\S+": {"Weights": {
                         7: {"Original": ()},

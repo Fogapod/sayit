@@ -4,13 +4,13 @@
     accent: {
         "question mark": (
             rules: {
-                r"[^?]+\?$": {"Literal": "¿$0"},
+                r"^[^?]+\?$": {"Literal": "¿$0"},
             },
         ),
         "main": (
             rules: {
-                r"(?-i)\bE": {"Literal": "Es"},
-                r"(?-i)\be": {"Literal": "es"},
+                r"(?-iu)\<E": {"Literal": "Es"},
+                r"(?-iu)\<e": {"Literal": "es"},
             },
         ),
     },

@@ -2,13 +2,13 @@
     accent: {
         "main": (
             rules: {
-                r"\bepic\b": {"Literal": "ebin"},
-                r"\b:?\)\b": {"Any": [
+                r"(?-u)\<epic\>": {"Literal": "ebin"},
+                r"(?-u)\<:?\)\>": {"Any": [
                     {"Literal": ":D"},
                     {"Literal": ":DD"},
                     {"Literal": ":DDD"},
                 ]},
-                r"\Bng\b": {"Literal": "gn"},
+                r"(?-u)\Bng\>": {"Literal": "gn"},
                 "xc": {"Literal": "gg"},
                 "c": {"Literal": "g"},
                 "k": {"Literal": "g"},
@@ -36,7 +36,7 @@
         1: Extend({
             "main": (
                 rules: {
-                    r"\b:?\)\b": {"Any": [
+                    r"(?-u)\<:?\)\>": {"Any": [
                         {"Literal": ":DD"},
                         {"Literal": ":DDD"},
                         {"Literal": ":DDDD"},
@@ -61,7 +61,7 @@
         2: Extend({
             "main": (
                 rules: {
-                    r"\b:?\)\b": {"Any": [
+                    r"(?-u)\<:?\)\>": {"Any": [
                         {"Literal": ":DDDD"},
                         {"Literal": ":DDDDD"},
                         {"Literal": ":DDDDDD"},
