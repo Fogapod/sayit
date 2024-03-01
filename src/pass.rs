@@ -128,7 +128,14 @@ pub enum CreationError {
 impl fmt::Display for CreationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CreationError::BadRegex(err) => write!(f, "regex combination failed: {err}"),
+            CreationError::BadRegex(err) => {
+                let mut msg = err.to_string();
+                if let Some(syntax_msg) = err.syntax_error() {
+                    msg = format!("msg: {syntax_msg}");
+                }
+
+                write!(f, "regex combination failed: {msg}")
+            }
         }
     }
 }
