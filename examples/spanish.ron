@@ -4,7 +4,7 @@
     accent: {
         "question mark": (
             rules: {
-                r"^[^?]+\?$": {"Literal": "¿$0"},
+                r"(\s*)([^?]+)\?": {"Literal": "$1¿$2?"},
             },
         ),
         "main": (
