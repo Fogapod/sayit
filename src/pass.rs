@@ -80,16 +80,16 @@ impl Pass {
     /// Produces string with all non-overlapping regexes replaced by corresponding tags
     #[must_use]
     pub fn apply<'a>(&self, text: &'a str) -> Cow<'a, str> {
-        let all_captures: Vec<_> = self.multi_regex.captures_iter(text).collect();
+        let mut caps_iter = self.multi_regex.captures_iter(text);
 
-        if all_captures.is_empty() {
+        let Some(mut caps) = caps_iter.next() else {
             return Cow::Borrowed(text);
-        }
+        };
 
         let mut last_replacement = 0;
         let mut output = String::with_capacity(text.len());
 
-        for caps in all_captures {
+        loop {
             // SAFETY: these captures come from matches. The only way this can fail is if they were
             //         created manually with Captures::empty()
             let caps_match = unsafe { caps.get_match().unwrap_unchecked() };
@@ -106,6 +106,11 @@ impl Pass {
             output.push_str(&repl);
 
             last_replacement = range.end;
+
+            caps = match caps_iter.next() {
+                Some(caps) => caps,
+                None => break,
+            };
         }
 
         output.push_str(&text[last_replacement..]);
