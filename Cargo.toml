@@ -45,7 +45,8 @@ dyn-clone = "1.0"
 [dev-dependencies]
 ron = { version = "0.8" }
 serde_json = { version = "1.0" }
-criterion = { version = "0.4", features = ["html_reports"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+codspeed-criterion-compat = "2.4.0"
 
 [features]
 default = ["deserialize"]

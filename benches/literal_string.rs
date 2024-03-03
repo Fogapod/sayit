@@ -1,6 +1,6 @@
 use std::fs;
 
-use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion, SamplingMode};
 
 use sayit::{tag_impls::literal::PrecomputedLiteral, utils::LiteralString};
 

@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use sayit::Accent;
 use std::{fs, path::PathBuf};
 
@@ -24,7 +24,7 @@ fn examples(c: &mut Criterion) {
     let lines = read_sample_file_lines();
 
     let mut g = c.benchmark_group("examples");
-    g.sampling_mode(criterion::SamplingMode::Linear);
+    g.sampling_mode(codspeed_criterion_compat::SamplingMode::Linear);
 
     for entry in fs::read_dir("examples").unwrap() {
         let path = entry.unwrap().path();

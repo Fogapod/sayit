@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use sayit::Accent;
 use std::fs;
 
@@ -23,7 +23,7 @@ fn accents(c: &mut Criterion) {
     let lines = read_sample_file_lines();
 
     let mut g = c.benchmark_group("accents");
-    g.sampling_mode(criterion::SamplingMode::Linear);
+    g.sampling_mode(codspeed_criterion_compat::SamplingMode::Linear);
 
     for name in [
         "original", "literal", "any", "weights", "upper", "lower", "concat",
