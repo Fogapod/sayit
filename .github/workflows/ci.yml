@@ -17,20 +17,20 @@ jobs:
       matrix:
         toolchain: [stable, beta]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          toolchain: ${{ matrix.toolchain }}
-      - run: cargo fmt --check
-      - run: cargo clippy -- -D warnings
+    - uses: actions/checkout@v4
+      with:
+        toolchain: ${{ matrix.toolchain }}
+    - run: cargo fmt --check
+    - run: cargo clippy -- -D warnings
 
   doc:
     runs-on: ubuntu-latest
     name: nightly / doc
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo doc --no-deps --all-features
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@nightly
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo doc --no-deps --all-features
 
   test:
     runs-on: ubuntu-latest
@@ -39,20 +39,39 @@ jobs:
       matrix:
         toolchain: [stable, beta]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          toolchain: ${{ matrix.toolchain }}
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --all-features
+    - uses: actions/checkout@v4
+      with:
+        toolchain: ${{ matrix.toolchain }}
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo test --all-features
 
   coverage:
     runs-on: ubuntu-latest
     name: stable / coverage
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@cargo-llvm-cov
-      - run: cargo llvm-cov --all-features --workspace
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+    - uses: Swatinem/rust-cache@v2
+    - uses: taiki-e/install-action@cargo-llvm-cov
+    - run: cargo llvm-cov --all-features --workspace
+
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: moonrepo/setup-rust@v0
+      with:
+        channel: stable
+        cache-target: release
+        bins: cargo-codspeed
+
+    - name: Build the benchmark target(s)
+      run: cargo codspeed build
+
+    - name: Run the benchmarks
+      uses: CodSpeedHQ/action@v2
+      with:
+        run: cargo codspeed run
+        token: ${{ secrets.CODSPEED_TOKEN }}
