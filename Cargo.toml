@@ -12,7 +12,7 @@ categories = ["text-processing"]
 include = [
     "/README.md",
     "/Cargo.toml",
-    "/src/*.rs",
+    "/src/*",
     "LICENSE",
     # unfortunate but otherwise cargo publish fails becuase there is a bench target
     "/benches",
