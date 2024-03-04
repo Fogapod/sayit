@@ -79,11 +79,13 @@ impl Pass {
 
     /// Produces string with all non-overlapping regexes replaced by corresponding tags
     #[must_use]
-    pub fn apply<'a>(&self, text: &'a str) -> Cow<'a, str> {
-        let mut caps_iter = self.multi_regex.captures_iter(text);
+    pub fn apply<'a>(&self, text: Cow<'a, str>) -> Cow<'a, str> {
+        let input = text.as_ref();
 
-        let Some(mut caps) = caps_iter.next() else {
-            return Cow::Borrowed(text);
+        let mut caps_iter = self.multi_regex.captures_iter(input);
+
+        let Some(mut captures) = caps_iter.next() else {
+            return text;
         };
 
         let mut last_replacement = 0;
@@ -92,22 +94,19 @@ impl Pass {
         loop {
             // SAFETY: these captures come from matches. The only way this can fail is if they were
             //         created manually with Captures::empty()
-            let caps_match = unsafe { caps.get_match().unwrap_unchecked() };
+            let caps_match = unsafe { captures.get_match().unwrap_unchecked() };
 
             let range = caps_match.range();
             let tag = &self.tags[caps_match.pattern()];
 
-            let repl = tag.generate(&Match {
-                captures: caps,
-                input: text,
-            });
+            let repl = tag.generate(&Match { input, captures });
 
             output.push_str(&text[last_replacement..range.start]);
             output.push_str(&repl);
 
             last_replacement = range.end;
 
-            caps = match caps_iter.next() {
+            captures = match caps_iter.next() {
                 Some(caps) => caps,
                 None => break,
             };

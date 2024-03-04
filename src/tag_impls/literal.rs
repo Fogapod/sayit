@@ -39,6 +39,7 @@ impl PrecomputedLiteral {
         }
     }
 
+    #[inline]
     pub(crate) fn handle_mimic_action(&self, action: MimicAction) -> String {
         match action {
             MimicAction::Title => self.body_title.clone(),
@@ -49,6 +50,7 @@ impl PrecomputedLiteral {
 }
 
 impl LiteralString for PrecomputedLiteral {
+    #[inline]
     fn chars(&self) -> (usize, bool, bool) {
         (self.char_count, self.has_lowercase, self.has_uppercase)
     }
