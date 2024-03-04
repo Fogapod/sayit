@@ -68,7 +68,7 @@
 //! // `typetag` is only required with `deserialize` crate feature
 //! #[typetag::deserialize]
 //! impl Tag for StringCase {
-//!     fn generate<'a>(&self, m: &Match<'a>) -> std::borrow::Cow<'a, str> {
+//!     fn generate<'tag, 'inp: 'tag>(&self, m: &Match) -> std::borrow::Cow<'_, str> {
 //!         if self.0 {
 //!             m.get_match().to_uppercase()
 //!         } else {

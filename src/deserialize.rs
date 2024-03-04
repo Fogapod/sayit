@@ -711,7 +711,10 @@ mod tests {
 
         #[typetag::deserialize]
         impl Tag for Increment {
-            fn generate<'a>(&self, m: &Match<'a>) -> std::borrow::Cow<'a, str> {
+            fn generate<'tag, 'inp: 'tag>(
+                &'tag self,
+                m: &Match<'inp>,
+            ) -> std::borrow::Cow<'tag, str> {
                 let input = m.get_match();
 
                 let input_number: i64 = match input.parse() {

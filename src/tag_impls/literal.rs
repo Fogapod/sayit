@@ -40,12 +40,13 @@ impl PrecomputedLiteral {
     }
 
     #[inline]
-    pub(crate) fn handle_mimic_action(&self, action: MimicAction) -> String {
+    pub(crate) fn handle_mimic_action(&self, action: MimicAction) -> Cow<'_, str> {
         match action {
-            MimicAction::Title => self.body_title.clone(),
-            MimicAction::Uppercase => self.body_upper.clone(),
-            MimicAction::Nothing => self.body.clone(),
+            MimicAction::Title => &self.body_title,
+            MimicAction::Uppercase => &self.body_upper,
+            MimicAction::Nothing => &self.body,
         }
+        .into()
     }
 }
 
@@ -80,17 +81,16 @@ impl Literal {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Literal {
-    fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
+    fn generate<'tag, 'inp: 'tag>(&'tag self, m: &Match<'inp>) -> Cow<'tag, str> {
         if self.0.has_template {
             let interpolated = m.interpolate(&self.0.body);
 
-            m.mimic_case(interpolated)
+            m.mimic_case(interpolated).into()
         } else {
             let action = self.0.mimic_case_action(m.get_match());
 
             self.0.handle_mimic_action(action)
         }
-        .into()
     }
 }
 

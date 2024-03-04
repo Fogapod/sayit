@@ -27,7 +27,7 @@ impl Original {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Original {
-    fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
+    fn generate<'tag, 'inp: 'tag>(&'tag self, m: &Match<'inp>) -> Cow<'tag, str> {
         m.get_match().into()
     }
 }
@@ -52,7 +52,7 @@ impl Delete {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Delete {
-    fn generate<'a>(&self, _: &Match<'a>) -> Cow<'a, str> {
+    fn generate<'tag, 'inp: 'tag>(&self, _: &Match) -> Cow<'_, str> {
         Cow::Borrowed("")
     }
 }
@@ -98,7 +98,7 @@ impl Any {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Any {
-    fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
+    fn generate<'tag, 'inp: 'tag>(&'tag self, m: &Match<'inp>) -> Cow<'tag, str> {
         let i = fastrand::usize(..self.0.len());
 
         self.0[i].generate(m)
@@ -181,7 +181,7 @@ impl Weights {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Weights {
-    fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
+    fn generate<'tag, 'inp: 'tag>(&'tag self, m: &Match<'inp>) -> Cow<'tag, str> {
         self.choices[self.random_choice()].generate(m)
     }
 }
@@ -207,7 +207,7 @@ impl Upper {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Upper {
-    fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
+    fn generate<'tag, 'inp: 'tag>(&self, m: &Match) -> Cow<'_, str> {
         self.0.generate(m).to_uppercase().into()
     }
 }
@@ -233,7 +233,7 @@ impl Lower {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Lower {
-    fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
+    fn generate<'tag, 'inp: 'tag>(&self, m: &Match) -> Cow<'_, str> {
         self.0.generate(m).to_lowercase().into()
     }
 }
@@ -259,7 +259,7 @@ impl Concat {
 
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 impl Tag for Concat {
-    fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str> {
+    fn generate<'tag, 'inp: 'tag>(&'tag self, m: &Match<'inp>) -> Cow<'_, str> {
         self.0 .0.generate(m) + self.0 .1.generate(m)
     }
 }
@@ -285,8 +285,10 @@ mod tests {
         }
     }
 
-    fn apply<'a>(tag: &dyn Tag, self_matching_pattern: &'a str) -> Cow<'a, str> {
-        tag.generate(&make_match(self_matching_pattern)).into()
+    fn apply<'a, 'b: 'a>(tag: &dyn Tag, self_matching_pattern: &'a str) -> Cow<'a, str> {
+        tag.generate(&make_match(self_matching_pattern))
+            .to_string()
+            .into()
     }
 
     #[test]

@@ -1,6 +1,6 @@
-use crate::Match;
-
 use std::{borrow::Cow, fmt::Debug};
+
+use crate::Match;
 
 use dyn_clone::{clone_trait_object, DynClone};
 
@@ -8,7 +8,7 @@ use dyn_clone::{clone_trait_object, DynClone};
 #[cfg_attr(feature = "deserialize", typetag::deserialize)]
 pub trait Tag: DynClone + Debug + Send + Sync {
     /// Make suitable replacement
-    fn generate<'a>(&self, m: &Match<'a>) -> Cow<'a, str>;
+    fn generate<'tag, 'inp: 'tag>(&'tag self, m: &Match<'inp>) -> Cow<'tag, str>;
 }
 
 clone_trait_object!(Tag);
