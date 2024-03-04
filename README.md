@@ -4,6 +4,7 @@ String replacements using regex.
 
 [![Crates.io](https://img.shields.io/crates/v/sayit)](https://crates.io/crates/sayit)
 [![Documentation](https://docs.rs/sayit/badge.svg)](https://docs.rs/sayit)
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/Fogapod/sayit)
 
 Originally based on python [pink-accents](https://git.based.computer/fogapod/pink-accents) and primarily developed for [ssnt](https://github.com/SS-NT/ssnt/tree/main) game.
 
